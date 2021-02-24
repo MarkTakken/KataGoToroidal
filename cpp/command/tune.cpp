@@ -148,6 +148,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   ModelDesc modelDesc;
   string expectedSha256 = "";
   ModelDesc::loadFromFileMaybeGZipped(modelFile, modelDesc, expectedSha256);
+  OpenCLTuner::ModelInfoForTuning modelInfo = OpenCLTuner::ModelInfoForTuning::ofDesc(&modelDesc);
 
   logger.write("Querying system devices...");
   vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(&logger);
@@ -181,7 +182,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
 
     if(outputFile == "") {
       string dir = OpenCLTuner::defaultDirectory(true,homeDataDirOverride);
-      outputFile = dir + "/" + OpenCLTuner::defaultFileName(device->info.name, nnXLen, nnYLen, &modelDesc);
+      outputFile = dir + "/" + OpenCLTuner::defaultFileName(device->info.name, nnXLen, nnYLen, modelInfo);
     }
 
     OpenCLTuneParams initialParams;
@@ -208,7 +209,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
       testFP16StorageMode,
       testFP16ComputeMode,
       testFP16TensorCoresMode,
-      &modelDesc,
+      modelInfo,
       full,
       winograd3x3TileSize,
       cout,
