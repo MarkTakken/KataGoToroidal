@@ -1,4 +1,4 @@
-#ifdef USE_OPENCL_BACKEND
+//#ifdef USE_OPENCL_BACKEND
 
 #include "../neuralnet/openclkernels.h"
 
@@ -154,7 +154,7 @@ __kernel void conv2dNCHW(
           int iy = ity+yBase-filterYRadius;
           for(int itx = lx; itx<inputTileXSize; itx += lxSize) {
             int ix = itx+xBase-filterXRadius;
-            real inputValue = ZERO;
+            real inputValue = ZERO;  //Padding that I need to change?
             if(iy >= 0 && iy < ySize && ix >= 0 && ix < xSize) {
               inputValue = INPUT(n,icBase+dic,iy,ix);
             }
@@ -231,7 +231,7 @@ __kernel void transform(
   int numTilesX,
   int numTilesY,
   int icSize,
-  int icSizePadded,
+  int icSizePadded, //Padding I need to change?
   int ntxtySizePadded
 ) {
   int id0 = get_global_id(0);
@@ -257,7 +257,7 @@ __kernel void transform(
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       real value = ZERO;
       if(y >= 0 && y < ySize && x >= 0 && x < xSize && n < nSize && ic < icSize) {
-        int xy = y * xSize + x;
+        int xy = y * xSize + x;  //Change this??
         value = INPUT(nic,xy);
       }
       WTILE(subY,subX) = value;
@@ -1072,4 +1072,4 @@ string OpenCLKernels::hgemmWmma =
 #include "../neuralnet/hgemm_wmma.opencl"
 ;
 
-#endif
+//#endif

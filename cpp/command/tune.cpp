@@ -137,6 +137,8 @@ int MainCmds::tuner(int argc, const char* const* argv) {
     return 1;
   }
 
+  Setup::setSpace(cfg);
+
   string homeDataDirOverride = Setup::loadHomeDataDirOverride(cfg);
 
   Logger logger;

@@ -50,6 +50,7 @@ class asserted_unreachable: public std::exception {
 //GLOBAL FUNCTIONS------------------------------------------------------------
 namespace Global
 {
+  extern bool markHistory;
   //ERRORS----------------------------------
 
   //Report fatal error message and exit

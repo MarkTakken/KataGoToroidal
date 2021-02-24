@@ -438,6 +438,8 @@ int MainCmds::matchauto(int argc, const char* const* argv) {
   logger.write("Auto Match Engine starting...");
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
+  Setup::setSpace(cfg);
+
   //Load per-bot search config, first, which also tells us how many bots we're running
   vector<SearchParams> paramss = Setup::loadParams(cfg,Setup::SETUP_FOR_MATCH);
   assert(paramss.size() > 0);

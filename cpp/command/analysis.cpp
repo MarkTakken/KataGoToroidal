@@ -135,6 +135,8 @@ int MainCmds::analysis(int argc, const char* const* argv) {
       params.conservativePass = true;
   };
 
+  Setup::setSpace(cfg);
+
   SearchParams defaultParams;
   Player defaultPerspective;
   loadParams(cfg, defaultParams, defaultPerspective, C_EMPTY);

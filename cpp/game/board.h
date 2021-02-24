@@ -53,12 +53,14 @@ namespace Location
   int getY(Loc loc, int x_size);
 
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
-  bool isAdjacent(Loc loc0, Loc loc1, int x_size);
-  Loc getMirrorLoc(Loc loc, int x_size, int y_size);
-  Loc getCenterLoc(int x_size, int y_size);
-  bool isCentral(Loc loc, int x_size, int y_size);
-  int distance(Loc loc0, Loc loc1, int x_size);
-  int euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size);
+  Loc getNewLoc(Loc loc, short offset, int x_size, int y_size);
+  bool isAdjacent(Loc loc0, Loc loc1, int x_size, int y_size); //only for planar
+  Loc getMirrorLoc(Loc loc, int x_size, int y_size); //only for planar
+  Loc getCenterLoc(int x_size, int y_size); //only for planar
+  bool isCentral(Loc loc, int x_size, int y_size); //only for planar
+  int checkSmallerChange(int change, int size);
+  int distance(Loc loc0, Loc loc1, int x_size); //not used outside tests, only for planar
+  int euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size, int y_size);
 
   std::string toString(Loc loc, int x_size, int y_size);
   std::string toString(Loc loc, const Board& b);
@@ -198,7 +200,7 @@ struct Board
   //Lift any simple ko ban recorded on thie board due to an immediate prior ko capture.
   void clearSimpleKoLoc();
 
-  //Sets the specified stone if possible. Returns true usually, returns false location or color were out of range.
+  //Sets the specified stone if possible. Returns true usually, returns false if location or color were out of range.
   bool setStone(Loc loc, Color color);
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.

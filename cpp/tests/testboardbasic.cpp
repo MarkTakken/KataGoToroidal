@@ -733,7 +733,7 @@ After white
     };
     auto testEuclideanDistance = [&](int x0, int y0, int x1, int y1) {
       out << "euclideanSq (" << x0 << "," << y0 << ") (" << x1 << "," << y1 << ") = " <<
-      Location::euclideanDistanceSquared(Location::getLoc(x0,y0,board.x_size),Location::getLoc(x1,y1,board.x_size),board.x_size) << endl;
+      Location::euclideanDistanceSquared(Location::getLoc(x0,y0,board.x_size),Location::getLoc(x1,y1,board.x_size),board.x_size,board.y_size) << endl;
     };
     testDistance(13,6,12,3);
     testDistance(13,6,12,4);

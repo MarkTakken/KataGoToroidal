@@ -1,4 +1,5 @@
 #include "../game/board.h"
+#include "../game/space.h"
 
 /*
  * board.cpp
@@ -56,23 +57,47 @@ void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
   adj_offsets[7] = (x_size+1)+1;
 }
 
-bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size)
+Loc Location::getNewLoc(Loc loc, short offset, int x_size, int y_size)
 {
-  return loc0 == loc1 - (x_size+1) || loc0 == loc1 - 1 || loc0 == loc1 + 1 || loc0 == loc1 + (x_size+1);
+  Loc newLoc = loc + offset;
+  if (Space::SETSPACE == Space::PLANAR)
+    return newLoc;
+  if (Space::SETSPACE == Space::TOROIDAL) {
+    if (newLoc <= x_size) newLoc += (x_size+1)*y_size;
+    else if (newLoc >= (x_size+1)*(y_size+1) + 1) newLoc -= (x_size+1)*y_size; //Fixed: added + 1
+    if (newLoc % (x_size+1) == 0) {
+      if (Location::getX(loc,x_size) == x_size-1) newLoc -= x_size;
+      else if (Location::getX(loc,x_size) == 0) newLoc += x_size; //Moved parenthesis from after 0 to after x_size
+      else throw "Invalid offset given";
+    }
+    return newLoc;
+  } 
+  else throw "Unrecognized board space";
 }
 
+bool Location::isAdjacent(Loc loc0, Loc loc1, int x_size, int y_size)
+{
+  return loc0 == Location::getNewLoc(loc1, 1, x_size, y_size) 
+      || loc0 == Location::getNewLoc(loc1, -1, x_size, y_size)
+      || loc0 == Location::getNewLoc(loc1, (x_size+1), x_size, y_size)
+      || loc0 == Location::getNewLoc(loc1, -(x_size+1), x_size, y_size);
+}
+
+//Only for planar!
 Loc Location::getMirrorLoc(Loc loc, int x_size, int y_size) {
   if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
     return loc;
   return getLoc(x_size-1-getX(loc,x_size),y_size-1-getY(loc,x_size),x_size);
 }
 
+//Only for planar!
 Loc Location::getCenterLoc(int x_size, int y_size) {
   if(x_size % 2 == 0 || y_size % 2 == 0)
     return Board::NULL_LOC;
   return getLoc(x_size / 2, y_size / 2, x_size);
 }
 
+//Only for planar!
 bool Location::isCentral(Loc loc, int x_size, int y_size) {
   int x = getX(loc,x_size);
   int y = getY(loc,x_size);
@@ -233,7 +258,7 @@ bool Board::isSuicide(Loc loc, Player pla) const
 
   Player opp = getOpp(pla);
   FOREACHADJ(
-    Loc adj = loc + ADJOFFSET;
+    Loc adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
 
     if(colors[adj] == C_EMPTY)
       return false;
@@ -252,12 +277,12 @@ bool Board::isSuicide(Loc loc, Player pla) const
   return true;
 }
 
-//Check if moving here is would be an illegal self-capture
+//Check if moving here would be an illegal self-capture
 bool Board::isIllegalSuicide(Loc loc, Player pla, bool isMultiStoneSuicideLegal) const
 {
   Player opp = getOpp(pla);
   FOREACHADJ(
-    Loc adj = loc + ADJOFFSET;
+    Loc adj = Location::getNewLoc(loc, ADJOFFSET, x_size, y_size);
 
     if(colors[adj] == C_EMPTY)
       return false;
@@ -288,7 +313,7 @@ void Board::getBoundNumLibertiesAfterPlay(Loc loc, Player pla, int& lowerBound, 
   int maxConnectionLibs = 0; //Max over friendly groups connected to of their libs-1
 
   for(int i = 0; i < 4; i++) {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == C_EMPTY) {
       numImmediateLibs++;
     }
@@ -325,7 +350,7 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
 
   //First, count immediate liberties and groups that would be captured
   for(int i = 0; i < 4; i++) {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == C_EMPTY) {
       libs[numLibs++] = adj;
       if(numLibs >= max)
@@ -362,7 +387,7 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
   int numConnectingGroups = 0;
   Loc connectingGroupHeads[4];
   for(int i = 0; i<4; i++) {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == pla) {
       Loc head = chain_head[adj];
       bool alreadyFound = false;
@@ -377,7 +402,7 @@ int Board::getNumLibertiesAfterPlay(Loc loc, Player pla, int max) const
         do
         {
           for(int k = 0; k < 4; k++) {
-            Loc possibleLib = cur + adj_offsets[k];
+            Loc possibleLib = Location::getNewLoc(cur,adj_offsets[k],x_size,y_size);
             if(possibleLib != loc && wouldBeEmpty(possibleLib)) {
               bool alreadyCounted = false;
               for(int l = 0; l<numLibs; l++) {
@@ -448,7 +473,7 @@ bool Board::isSimpleEye(Loc loc, Player pla) const
   //Check that surounding points are owned
   for(int i = 0; i < 4; i++)
   {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == C_WALL)
       against_wall = true;
     else if(colors[adj] != pla)
@@ -460,7 +485,7 @@ bool Board::isSimpleEye(Loc loc, Player pla) const
   int num_opp_corners = 0;
   for(int i = 4; i < 8; i++)
   {
-    Loc corner = loc + adj_offsets[i];
+    Loc corner = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[corner] == opp)
       num_opp_corners++;
   }
@@ -476,7 +501,7 @@ bool Board::wouldBeCapture(Loc loc, Player pla) const {
     return false;
   Player opp = getOpp(pla);
   FOREACHADJ(
-    Loc adj = loc + ADJOFFSET;
+    Loc adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
     if(colors[adj] == opp)
     {
       if(getNumLiberties(adj) == 1)
@@ -496,7 +521,7 @@ bool Board::wouldBeKoCapture(Loc loc, Player pla) const {
   Loc oppCapturableLoc = NULL_LOC;
   for(int i = 0; i < 4; i++)
   {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] != C_WALL && colors[adj] != opp)
       return false;
     if(colors[adj] == opp && getNumLiberties(adj) == 1) {
@@ -522,7 +547,7 @@ Loc Board::getKoCaptureLoc(Loc loc, Player pla) const {
   Loc oppCapturableLoc = NULL_LOC;
   for(int i = 0; i < 4; i++)
   {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] != C_WALL && colors[adj] != opp)
       return NULL_LOC;
     if(colors[adj] == opp && getNumLiberties(adj) == 1) {
@@ -542,7 +567,7 @@ Loc Board::getKoCaptureLoc(Loc loc, Player pla) const {
 
 bool Board::isAdjacentToPla(Loc loc, Player pla) const {
   FOREACHADJ(
-    Loc adj = loc + ADJOFFSET;
+    Loc adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
     if(colors[adj] == pla)
       return true;
   );
@@ -551,7 +576,7 @@ bool Board::isAdjacentToPla(Loc loc, Player pla) const {
 
 bool Board::isAdjacentOrDiagonalToPla(Loc loc, Player pla) const {
   for(int i = 0; i<8; i++) {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == pla)
       return true;
   }
@@ -562,7 +587,7 @@ bool Board::isAdjacentToChain(Loc loc, Loc chain) const {
   if(colors[chain] == C_EMPTY)
     return false;
   FOREACHADJ(
-    Loc adj = loc + ADJOFFSET;
+    Loc adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
     if(colors[adj] == colors[chain] && chain_head[adj] == chain_head[chain])
       return true;
   );
@@ -578,7 +603,7 @@ bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveAr
   Loc nonPassAliveAdjHead = NULL_LOC;
   for(int i = 0; i < 4; i++)
   {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == pla && passAliveArea[adj] == C_EMPTY) {
       nonPassAliveAdjHead = chain_head[adj];
       break;
@@ -590,7 +615,7 @@ bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveAr
 
   for(int i = 0; i < 4; i++)
   {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == pla && chain_head[adj] != nonPassAliveAdjHead)
       return true;
   }
@@ -668,16 +693,16 @@ Board::MoveRecord Board::playMoveRecorded(Loc loc, Player pla)
   if(loc != PASS_LOC) {
     Player opp = getOpp(pla);
 
-    { int adj = loc + ADJ0;
+    { int adj = Location::getNewLoc(loc,ADJ0,x_size,y_size);
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
         record.capDirs |= (((uint8_t)1) << 0); }
-    { int adj = loc + ADJ1;
+    { int adj = Location::getNewLoc(loc,ADJ1,x_size,y_size);
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
         record.capDirs |= (((uint8_t)1) << 1); }
-    { int adj = loc + ADJ2;
+    { int adj = Location::getNewLoc(loc,ADJ2,x_size,y_size);
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
         record.capDirs |= (((uint8_t)1) << 2); }
-    { int adj = loc + ADJ3;
+    { int adj = Location::getNewLoc(loc,ADJ3,x_size,y_size);
       if(colors[adj] == opp && getNumLiberties(adj) == 1)
         record.capDirs |= (((uint8_t)1) << 3); }
 
@@ -703,7 +728,7 @@ void Board::undo(Board::MoveRecord record)
   //Re-fill stones in all captured directions
   for(int i = 0; i<4; i++)
   {
-    int adj = loc + adj_offsets[i];
+    int adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(record.capDirs & (1 << i))
     {
       if(colors[adj] == C_EMPTY) {
@@ -741,7 +766,7 @@ void Board::undo(Board::MoveRecord record)
   {
     int numNeighbors = 0;
     FOREACHADJ(
-      int adj = loc + ADJOFFSET;
+      int adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
       if(colors[adj] == record.pla)
         numNeighbors++;
     );
@@ -766,7 +791,7 @@ void Board::undo(Board::MoveRecord record)
         head = newHead;
       }
 
-      //Extract this move out of the circlar list of stones. Unfortunately we don't have a prev pointer, so we need to walk the loop.
+      //Extract this move out of the circular list of stones. Unfortunately we don't have a prev pointer, so we need to walk the loop.
       {
         //Starting at the head is likely to need to walk less since whenever we merge a single stone into an existing group
         //we put it right after the old head.
@@ -781,7 +806,7 @@ void Board::undo(Board::MoveRecord record)
       //that weren't already liberties of the group.
       int libertyDelta = 0;
       FOREACHADJ(
-        int adj = loc + ADJOFFSET;
+        int adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
         if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head)) libertyDelta--;
       );
       //Removing this stone itself added a liberty to the group though.
@@ -804,7 +829,7 @@ void Board::undo(Board::MoveRecord record)
       //Rebuild each chain adjacent now
       for(int i = 0; i<4; i++)
       {
-        int adj = loc + adj_offsets[i];
+        int adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
         if(colors[adj] == record.pla && chain_head[adj] == NULL_LOC)
           rebuildChain(adj, record.pla);
       }
@@ -827,7 +852,7 @@ Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
   int numCapturedGroups = 0;
   Loc capturedGroupHeads[4];
   for(int i = 0; i < 4; i++) {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == C_EMPTY)
       wouldBeSuicide = false;
     else if(colors[adj] == pla && getNumLiberties(adj) > 1)
@@ -862,7 +887,7 @@ Hash128 Board::getPosHashAfterMove(Loc loc, Player pla) const {
     assert(numCapturedGroups == 0);
 
     for(int i = 0; i < 4; i++) {
-      Loc adj = loc + adj_offsets[i];
+      Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
       //Suicide capture!
       if(colors[adj] == pla && getNumLiberties(adj) == 1) {
         //Make sure we haven't already counted it
@@ -922,7 +947,7 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 
   for(int i = 0; i < 4; i++)
   {
-    int adj = loc + adj_offsets[i];
+    int adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
 
     //Friendly chain!
     if(colors[adj] == pla)
@@ -990,10 +1015,10 @@ void Board::playMoveAssumeLegal(Loc loc, Player pla)
 int Board::getNumImmediateLiberties(Loc loc) const
 {
   int num_libs = 0;
-  if(colors[loc + ADJ0] == C_EMPTY) num_libs++;
-  if(colors[loc + ADJ1] == C_EMPTY) num_libs++;
-  if(colors[loc + ADJ2] == C_EMPTY) num_libs++;
-  if(colors[loc + ADJ3] == C_EMPTY) num_libs++;
+  if(colors[Location::getNewLoc(loc,ADJ0,x_size,y_size)] == C_EMPTY) num_libs++;
+  if(colors[Location::getNewLoc(loc,ADJ1,x_size,y_size)] == C_EMPTY) num_libs++;
+  if(colors[Location::getNewLoc(loc,ADJ2,x_size,y_size)] == C_EMPTY) num_libs++;
+  if(colors[Location::getNewLoc(loc,ADJ3,x_size,y_size)] == C_EMPTY) num_libs++;
 
   return num_libs;
 }
@@ -1002,7 +1027,7 @@ int Board::countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const
 {
   int num_libsX2 = 0;
   for(int i = 0; i < 4; i++) {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == pla) {
       int libs = chain_data[chain_head[adj]].num_liberties;
       if(libs > 1)
@@ -1017,16 +1042,16 @@ int Board::countHeuristicConnectionLibertiesX2(Loc loc, Player pla) const
 bool Board::isLibertyOf(Loc loc, Loc head) const
 {
   Loc adj;
-  adj = loc + ADJ0;
+  adj = Location::getNewLoc(loc,ADJ0,x_size,y_size);
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + ADJ1;
+  adj = Location::getNewLoc(loc,ADJ1,x_size,y_size);
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + ADJ2;
+  adj = Location::getNewLoc(loc,ADJ2,x_size,y_size);
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
-  adj = loc + ADJ3;
+  adj = Location::getNewLoc(loc,ADJ3,x_size,y_size);
   if(colors[adj] == colors[head] && chain_head[adj] == head)
     return true;
 
@@ -1059,7 +1084,7 @@ void Board::mergeChains(Loc loc1, Loc loc2)
   {
     //Any adjacent liberty is a new liberty for head1 if it is not adjacent to a stone of head1
     FOREACHADJ(
-      Loc adj = loc + ADJOFFSET;
+      Loc adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
       if(colors[adj] == C_EMPTY && !isLibertyOf(adj,head1))
         numNewLiberties++;
     );
@@ -1154,7 +1179,7 @@ void Board::addChain(Loc loc, Player pla)
 
 //Floodfill a chain of the given color into this region of empty spaces
 //Make the specified loc the head for all the chains and updates the chainData of head with the number of stones.
-//Does NOT connect the stones into a circular list. Rather, it produces an linear linked list with the tail pointing
+//Does NOT connect the stones into a circular list. Rather, it produces a linear linked list with the tail pointing
 //to tailTarget, and returns the head of the list. The tail is guaranteed to be loc.
 Loc Board::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
@@ -1173,7 +1198,7 @@ Loc Board::addChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
   Loc nextTailTarget = loc;
   for(int i = 0; i<4; i++)
   {
-    Loc adj = loc + adj_offsets[i];
+    Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
     if(colors[adj] == C_EMPTY)
       nextTailTarget = addChainHelper(head,nextTailTarget,adj,pla);
   }
@@ -1203,10 +1228,10 @@ void Board::rebuildChain(Loc loc, Player pla)
 //some invalid location, such as NULL_LOC or a location not of color.
 Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 {
-  Loc adj0 = loc + ADJ0;
-  Loc adj1 = loc + ADJ1;
-  Loc adj2 = loc + ADJ2;
-  Loc adj3 = loc + ADJ3;
+  Loc adj0 = Location::getNewLoc(loc,ADJ0,x_size,y_size);
+  Loc adj1 = Location::getNewLoc(loc,ADJ1,x_size,y_size);
+  Loc adj2 = Location::getNewLoc(loc,ADJ2,x_size,y_size);
+  Loc adj3 = Location::getNewLoc(loc,ADJ3,x_size,y_size);
 
   //Count new liberties
   int numHeadLibertiesToAdd = 0;
@@ -1233,10 +1258,10 @@ Loc Board::rebuildChainHelper(Loc head, Loc tailTarget, Loc loc, Player pla)
 //Apply the specified delta to the liberties of all adjacent groups of the specified color
 void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 {
-  Loc adj0 = loc + ADJ0;
-  Loc adj1 = loc + ADJ1;
-  Loc adj2 = loc + ADJ2;
-  Loc adj3 = loc + ADJ3;
+  Loc adj0 = Location::getNewLoc(loc,ADJ0,x_size,y_size);
+  Loc adj1 = Location::getNewLoc(loc,ADJ1,x_size,y_size);
+  Loc adj2 = Location::getNewLoc(loc,ADJ2,x_size,y_size);
+  Loc adj3 = Location::getNewLoc(loc,ADJ3,x_size,y_size);
 
   if(colors[adj0] == pla)
     chain_data[chain_head[adj0]].num_liberties += delta;
@@ -1315,15 +1340,24 @@ void Board::changeSurroundingLiberties(Loc loc, Player pla, int delta)
 //   return indices_[loc] != -1;
 // }
 
+int Location::checkSmallerChange(int change, int size)
+{
+  change = abs(change);
+  if (Space::SETSPACE == Space::TOROIDAL)
+    change = min(change, size-change);
+  return change;
+}
+
+//Only for planar (since it is not used outside tests)
 int Location::distance(Loc loc0, Loc loc1, int x_size) {
   int dx = getX(loc1,x_size) - getX(loc0,x_size);
   int dy = (loc1-loc0-dx) / (x_size+1);
   return (dx >= 0 ? dx : -dx) + (dy >= 0 ? dy : -dy);
 }
 
-int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size) {
-  int dx = getX(loc1,x_size) - getX(loc0,x_size);
-  int dy = (loc1-loc0-dx) / (x_size+1);
+int Location::euclideanDistanceSquared(Loc loc0, Loc loc1, int x_size, int y_size) {
+  int dx = Location::checkSmallerChange(getX(loc1,x_size) - getX(loc0,x_size), x_size);
+  int dy = Location::checkSmallerChange((loc1-loc0-dx) / (x_size+1), y_size);
   return dx*dx + dy*dy;
 }
 
@@ -1337,7 +1371,7 @@ int Board::findLiberties(Loc loc, vector<Loc>& buf, int bufStart, int bufIdx) co
   do
   {
     for(int i = 0; i < 4; i++) {
-      Loc lib = cur + adj_offsets[i];
+      Loc lib = Location::getNewLoc(cur,adj_offsets[i],x_size,y_size);
       if(colors[lib] == C_EMPTY) {
         //Check for dups
         bool foundDup = false;
@@ -1377,7 +1411,7 @@ int Board::findLibertyGainingCaptures(Loc loc, vector<Loc>& buf, int bufStart, i
   do
   {
     for(int i = 0; i < 4; i++) {
-      Loc adj = cur + adj_offsets[i];
+      Loc adj = Location::getNewLoc(cur,adj_offsets[i],x_size,y_size);
       if(colors[adj] == opp) {
         Loc head = chain_head[adj];
         if(chain_data[head].num_liberties == 1) {
@@ -1410,7 +1444,7 @@ bool Board::hasLibertyGainingCaptures(Loc loc) const {
   do
   {
     FOREACHADJ(
-      Loc adj = cur + ADJOFFSET;
+      Loc adj = Location::getNewLoc(cur,ADJOFFSET,x_size,y_size);
       if(colors[adj] == opp) {
         Loc head = chain_head[adj];
         if(chain_data[head].num_liberties == 1)
@@ -1436,6 +1470,7 @@ bool Board::searchIsLadderCapturedAttackerFirst2Libs(Loc loc, vector<Loc>& buf, 
   Player opp = getOpp(pla);
 
   int numLibs = findLiberties(loc,buf,0,0);
+  //if (numLibs != 2) throw ("numLibs == 2 fails: numLibs equals " + to_string(numLibs));
   assert(numLibs == 2);
   (void)numLibs; //Avoid warning when asserts are off
 
@@ -1581,6 +1616,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
         //   cout << "===" << endl;
         //   checkConsistency();
         // }
+        //if (moveListLen != 2) throw "moveListLen == 2 fails: moveListLen equals " + to_string(moveListLen);
         assert(moveListLen == 2);
 
         int libs0 = getNumImmediateLiberties(buf[start]);
@@ -1601,7 +1637,7 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
 
         //Early quitouts if the liberties are not adjacent
         //(so that filling one doesn't fill an immediate liberty of the other)
-        if(!Location::isAdjacent(buf[start],buf[start+1],x_size)) {
+        if(!Location::isAdjacent(buf[start],buf[start+1],x_size,y_size)) {
           //We lose automatically if both escapes get the defender too many libs
           if(libs0 >= 3 && libs1 >= 3)
           { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
@@ -1821,7 +1857,7 @@ void Board::calculateAreaForPla(
 
   auto isAdjacentToPlaHead = [pla,this](Loc loc, Loc plaHead) {
     FOREACHADJ(
-      Loc adj = loc + ADJOFFSET;
+      Loc adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
       if(colors[adj] == pla && chain_head[adj] == plaHead)
         return true;
     );
@@ -1890,7 +1926,7 @@ void Board::calculateAreaForPla(
 
       //Push adjacent locations on to queue
       FOREACHADJ(
-        Loc adj = loc + ADJOFFSET;
+        Loc adj = Location::getNewLoc(loc,ADJOFFSET,x_size,y_size);
         if((colors[adj] == C_EMPTY || colors[adj] == opp) && regionIdxByLoc[adj] == -1) {
           buildRegionQueue[buildRegionQueueTail] = adj;
           buildRegionQueueTail += 1;
@@ -1932,7 +1968,7 @@ void Board::calculateAreaForPla(
         assert(vStart + 4 <= vitalForPlaHeadsListsMaxLen);
         uint16_t initialVLen = 0;
         for(int i = 0; i<4; i++) {
-          Loc adj = loc + adj_offsets[i];
+          Loc adj = Location::getNewLoc(loc,adj_offsets[i],x_size,y_size);
           if(colors[adj] == pla) {
             Loc plaHead = chain_head[adj];
             bool alreadyPresent = false;
@@ -2007,7 +2043,7 @@ void Board::calculateAreaForPla(
         Loc cur = plaHead;
         do {
           FOREACHADJ(
-            Loc adj = cur + ADJOFFSET;
+            Loc adj = Location::getNewLoc(cur,ADJOFFSET,x_size,y_size);
             if(colors[adj] == C_EMPTY || colors[adj] == opp)
               bordersNonPassAlivePlaByHead[regionHeads[regionIdxByLoc[adj]]] = true;
           );
@@ -2106,7 +2142,7 @@ void Board::calculateIndependentLifeAreaHelper(
 
             //Look all around it, floodfill
             FOREACHADJ(
-              Loc adj = nextLoc + ADJOFFSET;
+              Loc adj = Location::getNewLoc(nextLoc,ADJOFFSET,x_size,y_size);
               if(basicArea[adj] == pla && !isSeki[adj]) {
                 isSeki[adj] = true;
                 queue[queueTail++] = adj;
@@ -2137,7 +2173,7 @@ void Board::calculateIndependentLifeAreaHelper(
 
           //Look all around it, floodfill
           FOREACHADJ(
-            Loc adj = nextLoc + ADJOFFSET;
+            Loc adj = Location::getNewLoc(nextLoc,ADJOFFSET,x_size,y_size);
             if(basicArea[adj] == pla && result[adj] != basicArea[adj]) {
               result[adj] = basicArea[adj];
               queue[queueTail++] = adj;
@@ -2489,9 +2525,8 @@ void Board::printBoard(ostream& out, const Board& board, Loc markLoc, const vect
         out << '@';
       else
         out << s;
-
       bool histMarked = false;
-      if(hist != NULL) {
+      if(hist != NULL && Global::markHistory) {
         for(int i = (int)hist->size()-3; i<hist->size(); i++) {
           if(i >= 0 && (*hist)[i].loc == loc) {
             out << i - (hist->size()-3) + 1;

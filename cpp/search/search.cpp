@@ -4,6 +4,7 @@
 //-------------------------------------------------------------------------------------
 
 #include "../search/search.h"
+#include "../game/space.h"
 
 #include <algorithm>
 #include <numeric>
@@ -1051,7 +1052,7 @@ void Search::computeRootValues() {
   mirroringPla = C_EMPTY;
   mirrorAdvantage = 0.0;
   mirrorCenterIsSymmetric = false;
-  if(searchParams.antiMirror) {
+  if(searchParams.antiMirror && Space::SETSPACE == Space::PLANAR) { //Make sure antiMirroring is disabled for non-planar
     const Board& board = rootBoard;
     const BoardHistory& hist = rootHistory;
     int mirrorCount = 0;
@@ -1555,7 +1556,7 @@ static void maybeApplyAntiMirrorPolicy(
       Loc centerLoc = Location::getCenterLoc(xSize,ySize);
       if(centerLoc != Board::NULL_LOC) {
         if(search->rootBoard.colors[centerLoc] == getOpp(movePla)) {
-          if(thread->board.isAdjacentToChain(moveLoc,centerLoc) || Location::euclideanDistanceSquared(moveLoc,centerLoc,xSize) <= 2) {
+          if(thread->board.isAdjacentToChain(moveLoc,centerLoc) || Location::euclideanDistanceSquared(moveLoc,centerLoc,xSize,ySize) <= 2) {
             float weight = (float)(1.0/square(1.0-log10(nnPolicyProb+1e-30)));
             nnPolicyProb = nnPolicyProb + (1.0f - nnPolicyProb) * weight;
           }
@@ -1609,7 +1610,7 @@ static void maybeApplyAntiMirrorForcedExplore(
       double bonus = 0.02;
       if(isDifficult) {
         if(mirrorLoc != Board::PASS_LOC && search->mirrorCenterIsSymmetric) {
-          double factor = 0.75 + 0.5 * sqrt(Location::euclideanDistanceSquared(centerLoc,mirrorLoc,xSize));
+          double factor = 0.75 + 0.5 * sqrt(Location::euclideanDistanceSquared(centerLoc,mirrorLoc,xSize,ySize));
           if(thisChildVisits * factor < totalChildVisits && mirrorLoc != Board::PASS_LOC) {
             bonus = 1.0;
           }
@@ -1719,7 +1720,7 @@ double Search::getExploreSelectionValue(
       maybeApplyWideRootNoise(childUtility, nnPolicyProb, searchParams, thread, parent);
     }
   }
-  if(isDuringSearch && searchParams.antiMirror && mirroringPla != C_EMPTY) {
+  if(isDuringSearch && searchParams.antiMirror && Space::SETSPACE == Space::PLANAR && mirroringPla != C_EMPTY) {
     maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, parentPolicyProbs, parent.nextPla, thread, this);
     maybeApplyAntiMirrorForcedExplore(childUtility, moveLoc, parentPolicyProbs, childVisits, totalChildVisits, parent.nextPla, thread, this, parent);
   }
@@ -1905,7 +1906,7 @@ void Search::selectBestChildToDescend(
     }
 
     float nnPolicyProb = policyProbs[movePos];
-    if(searchParams.antiMirror && mirroringPla != C_EMPTY) {
+    if(searchParams.antiMirror && mirroringPla != C_EMPTY && Space::SETSPACE == Space::PLANAR) { //Make sure antiMirroring is disabled when non-planar
       maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, policyProbs, node.nextPla, &thread, this);
     }
 

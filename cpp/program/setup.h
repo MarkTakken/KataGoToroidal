@@ -66,6 +66,10 @@ namespace Setup {
     ConfigParser& cfg, Player defaultPerspective
   );
 
+  void setSpace(ConfigParser& cfg);
+
+  void setMarkHistory(ConfigParser& cfg);
+
   //Komi is just set to 7.5 and is not read in from cfg
   Rules loadSingleRulesExceptForKomi(
     ConfigParser& cfg

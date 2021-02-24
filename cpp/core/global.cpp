@@ -21,6 +21,8 @@
 
 using namespace std;
 
+bool Global::markHistory = true;
+
 //ERRORS----------------------------------
 
 void Global::fatalError(const char* s)

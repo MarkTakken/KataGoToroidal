@@ -1,4 +1,5 @@
 #include "../program/setup.h"
+#include "../game/space.h"
 
 #include "../neuralnet/nninterface.h"
 
@@ -613,6 +614,22 @@ Player Setup::parseReportAnalysisWinrates(
     return C_EMPTY;
 
   throw StringError("Could not parse config value for reportAnalysisWinratesAs: " + sOrig);
+}
+
+void Setup::setSpace(ConfigParser& cfg) {
+  if (cfg.contains("space"))
+    Space::parseSpace(cfg.getString("space"));
+  else Space::SETSPACE = Space::PLANAR;
+}
+
+void Setup::setMarkHistory(ConfigParser& cfg) {
+  if (cfg.contains("markHistory")) {
+    string lowercased = Global::trim(Global::toLower(cfg.getString("markHistory")));
+    if (lowercased == "true") Global::markHistory = true;
+    else if (lowercased == "false") Global::markHistory = false;
+    else throw IOError("Not true or false: " + lowercased);
+  }
+  else Global::markHistory = true;
 }
 
 Rules Setup::loadSingleRulesExceptForKomi(

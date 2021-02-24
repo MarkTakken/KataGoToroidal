@@ -8,6 +8,7 @@
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
+#include "../game/space.h"
 #include "../command/commandline.h"
 #include "../main.h"
 
@@ -32,7 +33,12 @@ static const vector<string> knownCommands = {
   "komi",
   //GTP extension - get KataGo's current komi setting
   "get_komi",
+  "set_space",
+  "print_space",
+  "markHistory",
+  "printMarkHistory",
   "play",
+  "playprint",
   "undo",
 
   //GTP extension - specify rules
@@ -46,7 +52,10 @@ static const vector<string> knownCommands = {
   "kata-list-params",
   "kgs-rules",
 
+  "selfplay_game",
+
   "genmove",
+  "genmoveprint",
   "genmove_debug", //Prints additional info to stderr
   "search_debug", //Prints additional info to stderr, doesn't actually make the move
 
@@ -1450,6 +1459,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   if(startupPrintMessageToStderr && !loggingToStderr) {
     cerr << Version::getKataGoVersionForHelp() << endl;
   }
+  
+  Setup::setSpace(cfg);
+  Setup::setMarkHistory(cfg);
 
   //Defaults to 7.5 komi, gtp will generally override this
   Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
@@ -1718,6 +1730,60 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
     else if(command == "clear_board") {
       engine->clearBoard();
+    }
+
+    else if (command == "print_space") {
+      if (Space::SETSPACE == 0)
+        response = "planar";
+      else if (Space::SETSPACE == 1)
+        response = "toroidal";
+      else {
+        response = "Space is not set correctly.";
+        responseIsError = true;
+      }
+    }
+
+    else if (command == "set_space") {
+      if (pieces.size() == 1) {
+        try {
+        Space::parseSpace(pieces[0]);
+        }
+        catch (IOError)
+        {
+          response = "Could not parse board space.";
+          responseIsError = true;
+        }
+      }
+      else {
+        response = "Expected single string argument for set_space but got '" + Global::concat(pieces," ") + "'";
+        responseIsError = true;
+      }
+    }
+
+    else if(command == "printMarkHistory") {
+      if(Global::markHistory == 1) response = "true";
+      else response = "false";
+    }
+
+    else if(command == "markHistory")
+    {
+      if (pieces.size() == 1) {
+        try {
+          string lowercased = Global::trim(Global::toLower(pieces[0]));
+          if (lowercased == "true") Global::markHistory = true;
+          else if (lowercased == "false") Global::markHistory = false;
+          else throw IOError("Not true or false: " + lowercased);
+        }
+        catch (IOError)
+        {
+          response = "Could not parse board space.";
+          responseIsError = true;
+        }
+      }
+      else {
+        response = "Expected single string argument for markHistory but got '" + Global::concat(pieces," ") + "'";
+        responseIsError = true;
+      }
     }
 
     else if(command == "komi") {
@@ -2214,6 +2280,38 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
+    else if(command == "playprint") {
+      Player pla = engine->bot->getRootPla();
+      Loc loc;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for playprint but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!tryParseLoc(pieces[0],engine->bot->getRootBoard(),loc)) {
+        responseIsError = true;
+        response = "Could not parse vertex: '" + pieces[1] + "'";
+      }
+      else {
+        bool suc = engine->play(loc,pla);
+        if(!suc) {
+          responseIsError = true;
+          response = "illegal move";
+        }
+        maybeStartPondering = true;
+        ostringstream sout;
+        engine->bot->getRootHist().printBoardOnly(sout, engine->bot->getRootBoard());
+        //Filter out all double newlines, since double newline terminates GTP command responses
+        string s = sout.str();
+        string filtered;
+        for(int i = 0; i<s.length(); i++) {
+          if(i > 0 && s[i-1] == '\n' && s[i] == '\n')
+            continue;
+          filtered += s[i];
+        }
+        response = Global::trim(filtered);
+      }
+    }
+
     else if(command == "set_position") {
       if(pieces.size() % 2 != 0) {
         responseIsError = true;
@@ -2286,6 +2384,68 @@ int MainCmds::gtp(int argc, const char* const* argv) {
           response,responseIsError,maybeStartPondering,
           GTPEngine::AnalyzeArgs()
         );
+      }
+    }
+
+    else if(command == "genmoveprint") {
+      Player pla = engine->bot->getRootPla();
+      bool debug = false;
+      bool playChosenMove = true;
+      bool prev_response_is_pass = (response == "pass");
+      engine->genMove(
+        pla,
+        logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
+        cleanupBeforePass,ogsChatToStderr,
+        allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+        logSearchInfo,debug,playChosenMove,
+        response,responseIsError,maybeStartPondering,
+        GTPEngine::AnalyzeArgs()
+      );
+      response = "Move played: " + response + "\n";
+      ostringstream sout;
+      engine->bot->getRootHist().printBoardOnly(sout, engine->bot->getRootBoard());
+      //Filter out all double newlines, since double newline terminates GTP command responses
+      string s = sout.str();
+      string filtered;
+      for(int i = 0; i<s.length(); i++) {
+        if(i > 0 && s[i-1] == '\n' && s[i] == '\n')
+          continue;
+        filtered += s[i];
+      }
+      response += Global::trim(filtered);
+    }
+
+    else if(command == "selfplay_game") {
+      response = "";
+      while (response != "two passes" && response != "resign")
+      {
+        ostringstream sout;
+        engine->bot->getRootHist().printBoardOnly(sout, engine->bot->getRootBoard());
+        //Filter out all double newlines, since double newline terminates GTP command responses
+        string s = sout.str();
+        string filtered;
+        for(int i = 0; i<s.length(); i++) {
+          if(i > 0 && s[i-1] == '\n' && s[i] == '\n')
+            continue;
+          filtered += s[i];
+        }
+        cout << Global::trim(filtered) << endl;
+        Player pla = engine->bot->getRootPla();
+        bool debug = false;
+        bool playChosenMove = true;
+        bool prev_response_is_pass = (response == "pass");
+        engine->genMove(
+          pla,
+          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
+          cleanupBeforePass,ogsChatToStderr,
+          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+          logSearchInfo,debug,playChosenMove,
+          response,responseIsError,maybeStartPondering,
+          GTPEngine::AnalyzeArgs()
+        );
+        cout << "Move played: " + response << endl;
+        if (response == "pass" && prev_response_is_pass)
+          response = "two passes";
       }
     }
 

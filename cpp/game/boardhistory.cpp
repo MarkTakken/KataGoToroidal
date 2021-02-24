@@ -402,6 +402,11 @@ int BoardHistory::computeWhiteHandicapBonus() const {
   }
 }
 
+void BoardHistory::printBoardOnly(ostream& out, const Board& board) const {
+  Board::printBoard(out, board, Board::NULL_LOC, &moveHistory);
+  out << "Next player: " << PlayerIO::playerToString(presumedNextMovePla) << endl;
+}
+
 void BoardHistory::printBasicInfo(ostream& out, const Board& board) const {
   Board::printBoard(out, board, Board::NULL_LOC, &moveHistory);
   out << "Next player: " << PlayerIO::playerToString(presumedNextMovePla) << endl;

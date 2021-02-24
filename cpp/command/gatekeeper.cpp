@@ -265,6 +265,8 @@ int MainCmds::gatekeeper(int argc, const char* const* argv) {
     return 1;
   }
 
+  Setup::setSpace(cfg);
+
   MakeDir::make(testModelsDir);
   MakeDir::make(acceptedModelsDir);
   MakeDir::make(rejectedModelsDir);

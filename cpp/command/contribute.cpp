@@ -114,6 +114,8 @@ static void runAndUploadSingleGame(
   istringstream taskCfgIn(gameTask.task.config);
   ConfigParser taskCfg(taskCfgIn);
 
+  Setup::setSpace(taskCfg);
+
   NNEvaluator* nnEvalBlack = gameTask.nnEvalBlack;
   NNEvaluator* nnEvalWhite = gameTask.nnEvalWhite;
 
