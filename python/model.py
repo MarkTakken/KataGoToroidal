@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 from board import Board
+from train_space import Space
 
 #Feature extraction functions-------------------------------------------------------------------
 
@@ -604,18 +605,38 @@ class Model:
       self.reg_variables_tiny.append(variable)
     return variable
 
+  @staticmethod
+  def pad_toroidal(tensor,yx_pad):
+    (y_pad,x_pad) = yx_pad
+    (nsize,csize,ysize,xsize) = tensor.shape
+    tensor = tf.concat([tf.gather(tensor,range(ysize-y_pad,ysize),axis=2),tensor,tf.gather(tensor,range(y_pad),axis=2)],axis=2)
+    tensor = tf.concat([tf.gather(tensor,range(xsize-x_pad,xsize),axis=3),tensor,tf.gather(tensor,range(x_pad),axis=3)],axis=3)
+    return tensor
+
   def conv2d(self, x, w):
-    return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
+    if Space.NETSPACE == Space.PLANAR:
+      return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
+    elif Space.NETSPACE == Space.TOROIDAL:
+      return tf.nn.conv2d(pad_toroidal(x,w.shape[2:]),w,strides=[1,1,1,1],padding='VALID')
+    else:
+      raise Exception("Space not set correctly")
 
   def dilated_conv2d(self, x, w, dilation):
-    return tf.nn.atrous_conv2d(x, w, rate = dilation, padding='SAME')
+    if Space.NETSPACE == Space.PLANAR:
+      return tf.nn.atrous_conv2d(x, w, rate = dilation, padding='SAME')
+    elif Space.NETSPACE == Space.TOROIDAL:
+      return tf.nn.atrous_conv2d(pad_toroidal(x,w.shape[2:]),w,rate = dilation,padding='VALID')
 
   def apply_symmetry(self,tensor,symmetries,inverse):
-    ud = symmetries[0]
-    lr = symmetries[1]
-    transp = symmetries[2]
+    ud = bool(symmetries[0])
+    lr = bool(symmetries[1])
+    transp = bool(symmetries[2])
+    xy_shift = symmetries[3:]
+    assert(xy_shift.shape == (2,))
 
     if not inverse:
+      if Space.SETSPACE == Space.TOROIDAL:
+        tensor = tf.roll(tensor, shift=xy_shift, axis=[1,2])
       tensor = tf.cond(
         ud,
         lambda: tf.reverse(tensor,[1]),
@@ -643,6 +664,9 @@ class Model:
         lambda: tf.reverse(tensor,[2]),
         lambda: tensor
       )
+      if Space.SETSPACE == Space.TOROIDAL:
+        inv_shift = -xy_shift
+        tensor = tf.roll(tensor, shift=inv_shift, axis=[1,2])
 
     return tensor
 
@@ -849,13 +873,13 @@ class Model:
     global_inputs = (placeholders["global_inputs"] if "global_inputs" in placeholders else
                     tf.compat.v1.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
     symmetries = (placeholders["symmetries"] if "symmetries" in placeholders else
-                  tf.compat.v1.placeholder(tf.bool, [3], name="symmetries"))
+                  tf.compat.v1.placeholder(tf.int32, [5], name="symmetries"))
     include_history = (placeholders["include_history"] if "include_history" in placeholders else
                        tf.compat.v1.placeholder(tf.float32, [None] + [5], name="include_history"))
 
     self.assert_batched_shape("bin_inputs",bin_inputs,self.bin_input_shape)
     self.assert_batched_shape("global_inputs",global_inputs,self.global_input_shape)
-    self.assert_shape("symmetries",symmetries,[3])
+    self.assert_shape("symmetries",symmetries,[5])
     self.assert_batched_shape("include_history",include_history,[5])
 
     self.bin_inputs = bin_inputs
@@ -1679,7 +1703,7 @@ class ModelUtils:
     placeholders["bin_inputs"] = binhwc
 
     placeholders["global_inputs"] = features["ginc"]
-    placeholders["symmetries"] = tf.greater(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
+    placeholders["symmetries"] = tf.concat(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.random.uniform([2],minval=0,maxval=self.pos_len,dtype=tf.int32))
 
     if mode == tf.estimator.ModeKeys.PREDICT:
       model = Model(model_config,pos_len,placeholders,is_training=False)

@@ -618,8 +618,17 @@ Player Setup::parseReportAnalysisWinrates(
 
 void Setup::setSpace(ConfigParser& cfg) {
   if (cfg.contains("space"))
-    Space::parseSpace(cfg.getString("space"));
+    Space::SETSPACE = Space::parseSpace(cfg.getString("space"));
   else Space::SETSPACE = Space::PLANAR;
+}
+
+void Setup::setNetSpace(ConfigParser& cfg) {
+  if (cfg.contains("net_space"))
+    Space::NETSPACE = Space::parseSpace(cfg.getString("net_space"));
+  else if (Space::SETSPACE != -1)
+    Space::NETSPACE = Space::SETSPACE;
+  else  //If for some reason SETSPACE wasn't already initialized
+    Space::NETSPACE = Space::PLANAR;
 }
 
 void Setup::setMarkHistory(ConfigParser& cfg) {

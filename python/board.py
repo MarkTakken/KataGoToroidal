@@ -1,6 +1,7 @@
 import sys
 import random
 import numpy as np
+from train_space import Space
 
 class IllegalMoveError(ValueError):
   pass
@@ -84,8 +85,27 @@ class Board:
   def loc_y(self,loc):
     return (loc // self.dy)-1
 
+  def getNewLoc(self,loc,offset):
+    newLoc = loc + offset
+    if Space.SETSPACE == Space.PLANAR:
+      return newLoc
+    elif Space.SETSPACE == Space.TOROIDAL:
+      if newLoc <= self.size:
+        newLoc += self.dy * self.size
+      elif newLoc > (self.dy)*(self.dy):
+        newLoc -= self.dy * self.size
+      if newLoc % self.dy == 0:
+        if self.loc_x(loc) == self.size - 1:
+          newLoc -= self.size
+        elif self.loc_x(loc) == 0:
+          newLoc += self.size
+        else:
+          raise Exception("Invalid offset given")
+    else:
+      raise Exception("Unrecognized board space")
+
   def is_adjacent(self,loc1,loc2):
-    return loc1 == loc2 + self.adj[0] or loc1 == loc2 + self.adj[1] or loc1 == loc2 + self.adj[2] or loc1 == loc2 + self.adj[3]
+    return loc1 == self.getNewLoc(loc2,self.adj[0]) or loc1 == self.getNewLoc(loc2,self.adj[1]) or loc1 == self.getNewLoc(loc2,self.adj[2]) or loc1 == self.getNewLoc(loc2,self.adj[3])
 
   def pos_zobrist(self):
     return self.zobrist
@@ -98,10 +118,10 @@ class Board:
     return self.group_liberty_count[self.group_head[loc]]
 
   def is_simple_eye(self,pla,loc):
-    adj0 = loc + self.adj[0]
-    adj1 = loc + self.adj[1]
-    adj2 = loc + self.adj[2]
-    adj3 = loc + self.adj[3]
+    adj0 = self.getNewLoc(loc,self.adj[0])
+    adj1 = self.getNewLoc(loc,self.adj[1])
+    adj2 = self.getNewLoc(loc,self.adj[2])
+    adj3 = self.getNewLoc(loc,self.adj[3])
 
     if (self.board[adj0] != pla and self.board[adj0] != Board.WALL) or \
        (self.board[adj1] != pla and self.board[adj1] != Board.WALL) or \
@@ -111,10 +131,10 @@ class Board:
 
     opp = Board.get_opp(pla)
     opp_corners = 0
-    diag0 = loc + self.diag[0]
-    diag1 = loc + self.diag[1]
-    diag2 = loc + self.diag[2]
-    diag3 = loc + self.diag[3]
+    diag0 = self.getNewLoc(loc,self.diag[0])
+    diag1 = self.getNewLoc(loc,self.diag[1])
+    diag2 = self.getNewLoc(loc,self.diag[2])
+    diag3 = self.getNewLoc(loc,self.diag[3])
     if self.board[diag0] == opp:
       opp_corners += 1
     if self.board[diag1] == opp:
@@ -157,10 +177,10 @@ class Board:
     return True
 
   def would_be_suicide(self,pla,loc):
-    adj0 = loc + self.adj[0]
-    adj1 = loc + self.adj[1]
-    adj2 = loc + self.adj[2]
-    adj3 = loc + self.adj[3]
+    adj0 = self.getNewLoc(loc,self.adj[0])
+    adj1 = self.getNewLoc(loc,self.adj[1])
+    adj2 = self.getNewLoc(loc,self.adj[2])
+    adj3 = self.getNewLoc(loc,self.adj[3])
 
     opp = Board.get_opp(pla)
 
@@ -179,10 +199,10 @@ class Board:
     return True
 
   def would_be_single_stone_suicide(self,pla,loc):
-    adj0 = loc + self.adj[0]
-    adj1 = loc + self.adj[1]
-    adj2 = loc + self.adj[2]
-    adj3 = loc + self.adj[3]
+    adj0 = self.getNewLoc(loc,self.adj[0])
+    adj1 = self.getNewLoc(loc,self.adj[1])
+    adj2 = self.getNewLoc(loc,self.adj[2])
+    adj3 = self.getNewLoc(loc,self.adj[3])
 
     opp = Board.get_opp(pla)
 
@@ -208,7 +228,7 @@ class Board:
 
     #First, count immediate liberties and groups that would be captured
     for i in range(4):
-      adj = loc + self.adj[i]
+      adj = self.getNewLoc(loc,self.adj[i])
       if self.board[adj] == Board.EMPTY:
         libs.append(adj)
         if len(libs) >= maxLibs:
@@ -233,7 +253,7 @@ class Board:
     #Next, walk through all stones of all surrounding groups we would connect with and count liberties, avoiding overlap.
     connectingGroupHeads = []
     for i in range(4):
-      adj = loc + self.adj[i]
+      adj = self.getNewLoc(loc,self.adj[i])
       if self.board[adj] == pla:
         head = self.group_head[adj]
         if head not in connectingGroupHeads:
@@ -242,7 +262,7 @@ class Board:
           cur = adj
           while True:
             for k in range(4):
-              possibleLib = cur + self.adj[k]
+              possibleLib = self.getNewLoc(cur,self.adj[k])
               if possibleLib != loc and wouldBeEmpty(possibleLib) and possibleLib not in libs:
                 libs.append(possibleLib)
                 if len(libs) >= maxLibs:
@@ -342,7 +362,7 @@ class Board:
     opp = Board.get_opp(pla)
     old_simple_ko_point = self.simple_ko_point
     for i in range(4):
-      adj = loc + self.adj[i]
+      adj = self.getNewLoc(loc,self.adj[i])
       if self.board[adj] == opp and self.group_liberty_count[self.group_head[adj]] == 1:
         capDirs.append(i)
 
@@ -366,7 +386,7 @@ class Board:
 
     #Re-fill stones in all captured directions
     for capdir in capDirs:
-      adj = loc + self.adj[capdir]
+      adj = self.getNewLoc(loc,self.adj[capdir])
       if self.board[adj] == Board.EMPTY:
         self.floodFillStones(opp,adj)
 
@@ -398,7 +418,7 @@ class Board:
 
       #Rebuild each chain adjacent now
       for i in range(4):
-        adj = loc + self.adj[i]
+        adj = self.getNewLoc(loc,self.adj[i])
         if self.board[adj] == pla and self.group_head[adj] == Board.PASS_LOC:
           self.rebuildChain(pla,adj)
 
@@ -440,7 +460,7 @@ class Board:
     #Recursively add stones around us.
     nextTailTarget = loc
     for i in range(4):
-      adj = loc + self.adj[i]
+      adj = self.getNewLoc(loc,self.adj[i])
       if self.board[adj] == Board.EMPTY:
         nextTailTarget = self.floodFillStonesHelper(head,nextTailTarget,adj,pla)
     return nextTailTarget
@@ -469,7 +489,8 @@ class Board:
   def rebuildChainHelper(self, head, tailTarget, loc, pla):
     #Count new liberties
     for dloc in self.adj:
-      if self.board[loc+dloc] == Board.EMPTY and not self.is_group_adjacent(head,loc+dloc):
+      newLoc = self.getNewLoc(loc,dloc)
+      if self.board[newLoc] == Board.EMPTY and not self.is_group_adjacent(head,newLoc):
         self.group_liberty_count[head] += 1
 
     #Add stone here to the chain by setting its head
@@ -481,7 +502,7 @@ class Board:
     #Recursively add stones around us.
     nextTailTarget = loc
     for i in range(4):
-      adj = loc + self.adj[i]
+      adj = self.getNewLoc(loc,self.adj[i])
       if self.board[adj] == pla and self.group_head[adj] != head:
         nextTailTarget = self.rebuildChainHelper(head,nextTailTarget,adj,pla)
     return nextTailTarget
@@ -500,7 +521,7 @@ class Board:
     self.group_stone_count[loc] = 1
     liberties = 0
     for dloc in self.adj:
-      if self.board[loc+dloc] == Board.EMPTY:
+      if self.board[self.getNewLoc(loc,dloc)] == Board.EMPTY:
         liberties += 1
     self.group_liberty_count[loc] = liberties
     self.group_next[loc] = loc
@@ -508,10 +529,10 @@ class Board:
 
     #Fill surrounding liberties of all adjacent groups
     #Carefully avoid doublecounting
-    adj0 = loc + self.adj[0]
-    adj1 = loc + self.adj[1]
-    adj2 = loc + self.adj[2]
-    adj3 = loc + self.adj[3]
+    adj0 = self.getNewLoc(loc,self.adj[0])
+    adj1 = self.getNewLoc(loc,self.adj[1])
+    adj2 = self.getNewLoc(loc,self.adj[2])
+    adj3 = self.getNewLoc(loc,self.adj[3])
     if self.board[adj0] == Board.BLACK or self.board[adj0] == Board.WHITE:
       self.group_liberty_count[self.group_head[adj0]] -= 1
     if self.board[adj1] == Board.BLACK or self.board[adj1] == Board.WHITE:
@@ -572,10 +593,10 @@ class Board:
   #Apply the specified delta to the liberties of all adjacent groups of the specified color
   def changeSurroundingLiberties(self,loc,pla,delta):
     #Carefully avoid doublecounting
-    adj0 = loc + self.adj[0]
-    adj1 = loc + self.adj[1]
-    adj2 = loc + self.adj[2]
-    adj3 = loc + self.adj[3]
+    adj0 = self.getNewLoc(loc,self.adj[0])
+    adj1 = self.getNewLoc(loc,self.adj[1])
+    adj2 = self.getNewLoc(loc,self.adj[2])
+    adj3 = self.getNewLoc(loc,self.adj[3])
     if self.board[adj0] == pla:
       self.group_liberty_count[self.group_head[adj0]] += delta
     if self.board[adj1] == pla:
@@ -592,10 +613,10 @@ class Board:
         self.group_liberty_count[self.group_head[adj3]] += delta
 
   def countImmediateLiberties(self,loc):
-    adj0 = loc + self.adj[0]
-    adj1 = loc + self.adj[1]
-    adj2 = loc + self.adj[2]
-    adj3 = loc + self.adj[3]
+    adj0 = self.getNewLoc(loc,self.adj[0])
+    adj1 = self.getNewLoc(loc,self.adj[1])
+    adj2 = self.getNewLoc(loc,self.adj[2])
+    adj3 = self.getNewLoc(loc,self.adj[3])
     count = 0
     if self.board[adj0] == Board.EMPTY:
       count += 1
@@ -609,10 +630,10 @@ class Board:
 
   def is_group_adjacent(self,head,loc):
     return (
-      self.group_head[loc+self.adj[0]] == head or \
-      self.group_head[loc+self.adj[1]] == head or \
-      self.group_head[loc+self.adj[2]] == head or \
-      self.group_head[loc+self.adj[3]] == head
+      self.group_head[self.getNewLoc(loc,self.adj[0])] == head or \
+      self.group_head[self.getNewLoc(loc,self.adj[1])] == head or \
+      self.group_head[self.getNewLoc(loc,self.adj[2])] == head or \
+      self.group_head[self.getNewLoc(loc,self.adj[3])] == head
     )
 
   #Helper, merge two groups assuming they're owned by the same player and adjacent
@@ -634,10 +655,10 @@ class Board:
     new_liberties = self.group_liberty_count[phead]
     loc = child
     while True:
-      adj0 = loc + self.adj[0]
-      adj1 = loc + self.adj[1]
-      adj2 = loc + self.adj[2]
-      adj3 = loc + self.adj[3]
+      adj0 = self.getNewLoc(loc,self.adj[0])
+      adj1 = self.getNewLoc(loc,self.adj[1])
+      adj2 = self.getNewLoc(loc,self.adj[2])
+      adj3 = self.getNewLoc(loc,self.adj[3])
 
       #Any adjacent empty space is a new liberty as long as it isn't adjacent to the parent
       if self.board[adj0] == Board.EMPTY and not self.is_group_adjacent(phead,adj0):
@@ -684,10 +705,10 @@ class Board:
     loc = group
     while True:
       #Add a liberty to all surrounding opposing groups, taking care to avoid double counting
-      adj0 = loc + self.adj[0]
-      adj1 = loc + self.adj[1]
-      adj2 = loc + self.adj[2]
-      adj3 = loc + self.adj[3]
+      adj0 = self.getNewLoc(loc,self.adj[0])
+      adj1 = self.getNewLoc(loc,self.adj[1])
+      adj2 = self.getNewLoc(loc,self.adj[2])
+      adj3 = self.getNewLoc(loc,self.adj[3])
       if self.board[adj0] == opp:
         self.group_liberty_count[self.group_head[adj0]] += 1
       if self.board[adj1] == opp:
@@ -748,7 +769,7 @@ class Board:
     cur = loc
     while True:
       for i in range(4):
-        lib = cur + self.adj[i]
+        lib = self.getNewLoc(cur,self.adj[i])
         if self.board[lib] == Board.EMPTY:
           if lib not in buf:
             buf.append(lib)
@@ -768,7 +789,7 @@ class Board:
     cur = loc
     while True:
       for i in range(4):
-        adj = cur + self.adj[i]
+        adj = self.getNewLoc(cur,self.adj[i])
         if self.board[adj] == opp:
           head = self.group_head[adj]
 
@@ -790,7 +811,7 @@ class Board:
     cur = loc
     while True:
       for i in range(4):
-        adj = cur + self.adj[i]
+        adj = self.getNewLoc(cur,self.adj[i])
         if self.board[adj] == opp:
           head = self.group_head[adj]
           if self.group_liberty_count[head] == 1:
@@ -809,7 +830,7 @@ class Board:
     opp = Board.get_opp(pla)
     oppCapturableLoc = None
     for i in range(4):
-      adj = loc + self.adj[i]
+      adj = self.getNewLoc(loc,self.adj[i])
       if self.board[adj] != Board.WALL and self.board[adj] != opp:
         return False
       if self.board[adj] == opp and self.group_liberty_count[self.group_head[adj]] == 1:
@@ -826,10 +847,10 @@ class Board:
     return True
 
   def countHeuristicConnectionLiberties(self,loc,pla):
-    adj0 = loc + self.adj[0]
-    adj1 = loc + self.adj[1]
-    adj2 = loc + self.adj[2]
-    adj3 = loc + self.adj[3]
+    adj0 = self.getNewLoc(loc,self.adj[0])
+    adj1 = self.getNewLoc(loc,self.adj[1])
+    adj2 = self.getNewLoc(loc,self.adj[2])
+    adj3 = self.getNewLoc(loc,self.adj[3])
     count = 0.0
     if self.board[adj0] == pla:
       count += max(0.0,self.group_liberty_count[self.group_head[adj0]]-1.5)
@@ -1160,7 +1181,7 @@ class Board:
 
     def isAdjacentToPlaHead(loc,plaHead):
       for i in range(4):
-        adj = loc + self.adj[i]
+        adj = self.getNewLoc(loc,self.adj[i])
         if self.board[adj] == pla and self.group_head[adj] == plaHead:
           return True
       return False
@@ -1192,7 +1213,7 @@ class Board:
       if numInternalSpacesMax2[regionIdx] < 2:
         isInternal = True
         for i in range(4):
-          adj = loc + self.adj[i]
+          adj = self.getNewLoc(loc,self.adj[i])
           if self.board[adj] == pla:
             isInternal = False
             break
@@ -1206,7 +1227,7 @@ class Board:
       nextEmptyOrOpp[loc] = tailTarget
       nextTailTarget = loc
       for i in range(4):
-        adj = loc + self.adj[i]
+        adj = self.getNewLoc(loc,self.adj[i])
         if self.board[adj] == Board.EMPTY or self.board[adj] == opp:
           nextTailTarget = buildRegion(head,nextTailTarget,adj,regionIdx)
 
@@ -1240,7 +1261,7 @@ class Board:
         assert(vStart + 4 <= vitalForPlaHeadsListsMaxLen)
         initialVLen = 0
         for i in range(4):
-          adj = loc + self.adj[i]
+          adj = self.getNewLoc(loc,self.adj[i])
           if self.board[adj] == pla:
             plaHead = self.group_head[adj]
             alreadyPresent = False
@@ -1312,7 +1333,7 @@ class Board:
           cur = plaHead
           while(True):
             for j in range(4):
-              adj = cur + self.adj[j]
+              adj = self.getNewLoc(cur,self.adj[j])
               if self.board[adj] == Board.EMPTY or self.board[adj] == opp:
                 bordersNonPassAlivePlaByHead[regionHeadByLoc[adj]] = True
 
@@ -1370,10 +1391,10 @@ class Board:
         loc = self.loc(x,y)
         if basicArea[loc] != Board.EMPTY and not isDameTouching[loc]:
           #Touches dame?
-          if((self.board[loc+ADJ0] == Board.EMPTY and basicArea[loc+ADJ0] == Board.EMPTY) or
-             (self.board[loc+ADJ1] == Board.EMPTY and basicArea[loc+ADJ1] == Board.EMPTY) or
-             (self.board[loc+ADJ2] == Board.EMPTY and basicArea[loc+ADJ2] == Board.EMPTY) or
-             (self.board[loc+ADJ3] == Board.EMPTY and basicArea[loc+ADJ3] == Board.EMPTY)):
+          if((self.board[self.getNewLoc(loc,ADJ0)] == Board.EMPTY and basicArea[self.getNewLoc(loc,ADJ0)] == Board.EMPTY) or
+             (self.board[self.getNewLoc(loc,ADJ1)] == Board.EMPTY and basicArea[self.getNewLoc(loc,ADJ1)] == Board.EMPTY) or
+             (self.board[self.getNewLoc(loc,ADJ2)] == Board.EMPTY and basicArea[self.getNewLoc(loc,ADJ2)] == Board.EMPTY) or
+             (self.board[self.getNewLoc(loc,ADJ3)] == Board.EMPTY and basicArea[self.getNewLoc(loc,ADJ3)] == Board.EMPTY)):
 
             pla = basicArea[loc]
             isDameTouching[loc] = True
@@ -1386,7 +1407,7 @@ class Board:
 
               #Look all around it, floodfill
               for j in range(4):
-                adj = nextLoc + self.adj[j]
+                adj = self.getNewLoc(nextLoc,self.adj[j])
                 if basicArea[adj] == pla and not isDameTouching[adj]:
                   isDameTouching[adj] = True
                   queue[queueTail] = adj
@@ -1412,7 +1433,7 @@ class Board:
 
             #Look all around it, floodfill
             for j in range(4):
-              adj = nextLoc + self.adj[j]
+              adj = self.getNewLoc(nextLoc,self.adj[j])
               if basicArea[adj] == pla and result[adj] != basicArea[adj]:
                 result[adj] = basicArea[adj]
                 queue[queueTail] = adj

@@ -136,6 +136,7 @@ int MainCmds::analysis(int argc, const char* const* argv) {
   };
 
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
 
   SearchParams defaultParams;
   Player defaultPerspective;

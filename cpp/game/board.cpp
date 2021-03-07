@@ -62,7 +62,7 @@ Loc Location::getNewLoc(Loc loc, short offset, int x_size, int y_size)
   Loc newLoc = loc + offset;
   if (Space::SETSPACE == Space::PLANAR)
     return newLoc;
-  if (Space::SETSPACE == Space::TOROIDAL) {
+  else if (Space::SETSPACE == Space::TOROIDAL) {
     if (newLoc <= x_size) newLoc += (x_size+1)*y_size;
     else if (newLoc >= (x_size+1)*(y_size+1) + 1) newLoc -= (x_size+1)*y_size; //Fixed: added + 1
     if (newLoc % (x_size+1) == 0) {

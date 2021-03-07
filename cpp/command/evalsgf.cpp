@@ -190,6 +190,7 @@ int MainCmds::evalsgf(int argc, const char* const* argv) {
   logger.write("Engine starting...");
 
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
   if(maxVisits < -1 || maxVisits == 0)
     throw StringError("maxVisits: invalid value");

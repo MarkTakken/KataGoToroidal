@@ -138,6 +138,7 @@ int MainCmds::tuner(int argc, const char* const* argv) {
   }
 
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
 
   string homeDataDirOverride = Setup::loadHomeDataDirOverride(cfg);
 

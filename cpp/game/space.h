@@ -13,7 +13,8 @@ namespace Space
   const int PLANAR = 0;
   const int TOROIDAL = 1;
   extern int SETSPACE;
-  void parseSpace(const std::string& sOrig);
+  extern int NETSPACE;
+  int parseSpace(const std::string& sOrig);
 };
 
 #endif //GAME_SPACE_H

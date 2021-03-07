@@ -35,6 +35,8 @@ static const vector<string> knownCommands = {
   "get_komi",
   "set_space",
   "print_space",
+  "set_netspace",
+  "print_netspace",
   "markHistory",
   "printMarkHistory",
   "play",
@@ -400,6 +402,43 @@ struct GTPEngine {
 
   void clearStatsForNewGame() {
     //Currently nothing
+  }
+
+  void resetNetSpace(ConfigParser& cfg, Logger& logger, Rand& seedRand) {
+    assert(bot != NULL);
+    Board board = bot->getRootBoard();
+    int boardXSize = board.x_size;
+    int boardYSize = board.y_size;
+    BoardHistory hist = bot->getRootHist();
+    Player pla = bot->getRootPla();
+    bot->stopAndWait();
+    delete bot;
+    delete nnEval;
+    bot = NULL;
+    nnEval = NULL;
+    logger.write("Cleaned up old neural net and bot");
+
+    int maxConcurrentEvals = params.numThreads * 2 + 16; // * 2 + 16 just to give plenty of headroom
+    int expectedConcurrentEvals = params.numThreads;
+    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
+    string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,maxConcurrentEvals,expectedConcurrentEvals,
+      boardXSize,boardYSize,defaultMaxBatchSize,
+      Setup::SETUP_FOR_GTP
+    );
+    logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
+
+    string searchRandSeed;
+    if(cfg.contains("searchRandSeed"))
+      searchRandSeed = cfg.getString("searchRandSeed");
+    else
+      searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
+
+    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
+
+    vector<Move> newMoveHistory;
+    setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
   }
 
   //Specify -1 for the sizes for a default
@@ -1461,6 +1500,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
   
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
   Setup::setMarkHistory(cfg);
 
   //Defaults to 7.5 komi, gtp will generally override this
@@ -1733,9 +1773,9 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     }
 
     else if (command == "print_space") {
-      if (Space::SETSPACE == 0)
+      if (Space::SETSPACE == Space::PLANAR)
         response = "planar";
-      else if (Space::SETSPACE == 1)
+      else if (Space::SETSPACE == Space::TOROIDAL)
         response = "toroidal";
       else {
         response = "Space is not set correctly.";
@@ -1746,7 +1786,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     else if (command == "set_space") {
       if (pieces.size() == 1) {
         try {
-        Space::parseSpace(pieces[0]);
+          Space::SETSPACE = Space::parseSpace(pieces[0]);
         }
         catch (IOError)
         {
@@ -1758,6 +1798,35 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "Expected single string argument for set_space but got '" + Global::concat(pieces," ") + "'";
         responseIsError = true;
       }
+    }
+
+    else if (command == "print_netspace") {
+      if (Space::NETSPACE == Space::PLANAR)
+        response = "planar";
+      else if (Space::NETSPACE == Space::TOROIDAL)
+        response = "toroidal";
+      else {
+        response = "Network space is not set correctly.";
+        responseIsError = true;
+      }
+    }
+
+    else if (command == "set_netspace") {
+      if (pieces.size() == 1) {
+        try {
+          Space::NETSPACE = Space::parseSpace(pieces[0]);
+        }
+        catch (IOError)
+        {
+          response = "Could not parse board space.";
+          responseIsError = true;
+        }
+      }
+      else {
+        response = "Expected single string argument for set_space but got '" + Global::concat(pieces," ") + "'";
+        responseIsError = true;
+      }
+      engine->resetNetSpace(cfg,logger,seedRand);
     }
 
     else if(command == "printMarkHistory") {

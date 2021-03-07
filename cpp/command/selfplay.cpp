@@ -76,6 +76,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
   }
 
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
 
   MakeDir::make(outputDir);
   MakeDir::make(modelsDir);

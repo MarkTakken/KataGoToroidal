@@ -397,6 +397,7 @@ int MainCmds::demoplay(int argc, const char* const* argv) {
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
 
   NNEvaluator* nnEval;
   {
@@ -878,6 +879,7 @@ int MainCmds::dataminesgfs(int argc, const char* const* argv) {
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
   //Ignore temperature, noise
   params.chosenMoveTemperature = 0;
   params.chosenMoveTemperatureEarly = 0;
@@ -1578,6 +1580,7 @@ int MainCmds::trystartposes(int argc, const char* const* argv) {
 
   SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
   
   //Ignore temperature, noise
   params.chosenMoveTemperature = 0;

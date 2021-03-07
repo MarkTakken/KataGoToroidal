@@ -7,6 +7,7 @@
 #include "../core/rand.h"
 #include "../core/makedir.h"
 #include "../dataio/homedata.h"
+#include "../game/space.h"
 
 #include <cstring>
 
@@ -1682,11 +1683,20 @@ static void tuneTransform(
     cl_int err;
     cl_program program;
     string compileError;
-    bool compileSuc = tryCompileProgram(
-      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
+    bool compileSuc;
+    if (Space::NETSPACE == Space::PLANAR) {
+    compileSuc = tryCompileProgram(
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWPlanar,
       cfg.conv3x3.compileOptions() + maybeFP16CompileOptions,
       program, compileError
-    );
+    ); }
+    else if (Space::NETSPACE == Space::TOROIDAL) {
+    compileSuc = tryCompileProgram(
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWToroidal,
+      cfg.conv3x3.compileOptions() + maybeFP16CompileOptions,
+      program, compileError
+    ); }
+    else throw ("Invalid board space");
     if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
     cl_kernel kernel = clCreateKernel(program, "transform", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }

@@ -9,6 +9,7 @@
 #include "../neuralnet/opencltuner.h"
 
 #include "../neuralnet/openclhelpers.h"
+#include "../game/space.h"
 
 using namespace std;
 using namespace OpenCLHelpers;
@@ -177,30 +178,55 @@ struct CompiledPrograms {
     if(useFP16Compute)
       maybeFP16CompileOptions += OpenCLKernels::fp16ComputeDefine;
 
+    if (Space::NETSPACE == Space::PLANAR) {
     conv2dNCHWProgram = compileProgram(
-      "conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHW,
+      "conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHWPlanar,
       maybeFP16CompileOptions
-    );
+    ); 
     winogradConv3x3NCHWTransformProgram = compileProgram(
-      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWPlanar,
       tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
     );
     winogradConv3x3NCHWBNReluTransformProgram = compileProgram(
-      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
+      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHWPlanar,
       tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
     );
+    winogradConv5x5NCHWTransformProgram = compileProgram(
+      "winogradConv5x5NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWPlanar,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
+    );
+    winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHWPlanar,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
+    );}
+    else if (Space::NETSPACE == Space::TOROIDAL) {
+    conv2dNCHWProgram = compileProgram(
+      "conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHWToroidal,
+      maybeFP16CompileOptions
+    ); 
+    winogradConv3x3NCHWTransformProgram = compileProgram(
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWToroidal,
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
+    );
+    winogradConv3x3NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHWToroidal,
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
+    );
+    winogradConv5x5NCHWTransformProgram = compileProgram(
+      "winogradConv5x5NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWToroidal,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
+    );
+    winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHWToroidal,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
+    );}  
+    else throw ("Invalid board space");
+
     winogradConv3x3NCHWUntransformProgram = compileProgram(
       "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
       tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
     );
-    winogradConv5x5NCHWTransformProgram = compileProgram(
-      "winogradConv5x5NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHW,
-      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
-    );
-    winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
-      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHW,
-      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
-    );
+
     winogradConv5x5NCHWUntransformProgram = compileProgram(
       "winogradConv5x5NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
       tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions

@@ -66,6 +66,7 @@ int MainCmds::match(int argc, const char* const* argv) {
   logger.write(string("Git revision: ") + Version::getGitRevision());
 
   Setup::setSpace(cfg);
+  Setup::setNetSpace(cfg);
 
   //Load per-bot search config, first, which also tells us how many bots we're running
   vector<SearchParams> paramss = Setup::loadParams(cfg,Setup::SETUP_FOR_MATCH);
