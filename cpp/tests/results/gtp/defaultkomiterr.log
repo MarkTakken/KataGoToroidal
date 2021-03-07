@@ -1,10 +1,19 @@
-KataGo v1.8.0
-Using koPOSITIONALscoreTERRITORYtaxNONEsui0 rules initially, unless GTP/GUI overrides this
-Loaded config configs/gtp_example.cfg and/or command-line and query overrides
-Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
-Model name: g170-b6c96-s175395328-d26788732
-GTP ready, beginning main protocol loop
-MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
+: GTP Engine starting...
+: KataGo v1.8.0
+: Using koPOSITIONALscoreTERRITORYtaxNONEsui0 rules initially, unless GTP/GUI overrides this
+: Using 1 CPU thread(s) for search
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: Cuda backend thread 0: Found GPU Tesla V100-SXM2-16GB memory 16945512448 compute capability major 7 minor 0
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Loaded neural net with nnXLen 19 nnYLen 19
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Model name: g170-b6c96-s175395328-d26788732
+: GTP ready, beginning main protocol loop
+: Controller: genmove_debug b
+: MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
 18 . . . . . . . . . . . . . . . . . . .
@@ -47,3 +56,6 @@ C16 : T   1.74c W   0.26c S   1.48c ( +0.1 L  +0.3) LCB  -16.94c P  7.47% WF   8
 R16 : T   2.23c W   0.53c S   1.69c ( +0.3 L  +0.4) LCB  -14.56c P  7.10% WF   8.1 PSV       8 N       8  --  R16 D3 D17
 Q4  : T  -0.03c W  -0.95c S   0.92c ( -0.1 L  +0.2) LCB  -24.43c P  7.11% WF   6.0 PSV       6 N       6  --  Q4 D3 Q17
 D4  : T   0.68c W  -0.49c S   1.17c ( -0.0 L  +0.3) LCB  -25.13c P  5.74% WF   6.0 PSV       6 N       6  --  D4 D17 Q17
+
+: = Q3
+: All cleaned up, quitting
