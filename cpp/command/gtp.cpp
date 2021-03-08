@@ -2483,7 +2483,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       engine->genMove(
         pla,
         logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-        cleanupBeforePass,ogsChatToStderr,
+        cleanupBeforePass,friendlyPass,ogsChatToStderr,
         allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
         logSearchInfo,debug,playChosenMove,
         response,responseIsError,maybeStartPondering,
@@ -2525,7 +2525,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         engine->genMove(
           pla,
           logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-          cleanupBeforePass,ogsChatToStderr,
+          cleanupBeforePass,friendlyPass,ogsChatToStderr,
           allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
           logSearchInfo,debug,playChosenMove,
           response,responseIsError,maybeStartPondering,
