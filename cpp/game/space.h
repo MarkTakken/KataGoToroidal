@@ -15,6 +15,6 @@ namespace Space
   extern int SETSPACE;
   extern int NETSPACE;
   int parseSpace(const std::string& sOrig);
-};
+}
 
 #endif //GAME_SPACE_H
