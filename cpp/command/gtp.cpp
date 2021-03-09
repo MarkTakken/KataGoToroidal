@@ -2479,7 +2479,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       Player pla = engine->bot->getRootPla();
       bool debug = false;
       bool playChosenMove = true;
-      bool prev_response_is_pass = (response == "pass");
       engine->genMove(
         pla,
         logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
