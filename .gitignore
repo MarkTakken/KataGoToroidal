@@ -9,9 +9,9 @@ __pycache__
 tmp*.txt
 
 cpp/write
-cpp/runtests
+#cpp/runtests
 cpp/example
-cpp/gtp
+#cpp/gtp
 cpp/gtp.log
 cpp/match
 cpp/matchcuda
@@ -21,8 +21,8 @@ cpp/main
 cpp/maincuda
 cpp/mainopencl
 cpp/katago
-cpp/configs
-cpp/evalsgf
+#cpp/configs
+#cpp/evalsgf
 cpp/runmatch.sh
 cpp/runmatchauto.sh
 cpp/runstuff.sh
