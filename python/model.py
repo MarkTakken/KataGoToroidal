@@ -629,7 +629,7 @@ class Model:
       return tf.nn.atrous_conv2d(pad_toroidal(x,w.shape[2:]),w,rate = dilation,padding='VALID')
 
   def apply_symmetry(self,tensor,symmetries,inverse):
-    print(symmetries)
+    print(symmetries[0])
     ud = bool(symmetries[0])
     lr = bool(symmetries[1])
     transp = bool(symmetries[2])
