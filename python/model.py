@@ -56,7 +56,6 @@ class Model:
 
   def __init__(self,config,pos_len,placeholders,is_training=False):
     self.config = config
-    print(pos_len)
     assert(pos_len == 13) #For 13x13 training only!!
     self.pos_len = pos_len
     self.num_bin_input_features = Model.get_num_bin_input_features(config)

@@ -65,12 +65,14 @@ else
     exit 1
 fi
 
+#Changed pos_len to 13 for cheaper training
+
 time python3 "$GITROOTDIR"/python/train.py \
      -traindir "$BASEDIR"/train/"$TRAININGNAME" \
      -datadir "$BASEDIR"/shuffleddata/current/ \
      -exportdir "$BASEDIR"/"$EXPORT_SUBDIR" \
      -exportprefix "$TRAININGNAME" \
-     -pos-len 19 \
+     -pos-len 13 \
      -batch-size "$BATCHSIZE" \
      -gpu-memory-frac 0.6 \
      -model-kind "$MODELKIND" \

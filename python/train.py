@@ -55,13 +55,12 @@ parser.add_argument('-verbose', help='verbose', required=False, action='store_tr
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
 
-print(args)
-
 traindir = args["traindir"]
 datadir = args["datadir"]
 exportdir = args["exportdir"]
 exportprefix = args["exportprefix"]
 pos_len = args["pos_len"]
+assert(pos_len == 13)
 batch_size = args["batch_size"]
 samples_per_epoch = args["samples_per_epoch"]
 multi_gpus = args["multi_gpus"]
