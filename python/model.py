@@ -1706,6 +1706,7 @@ class ModelUtils:
 
     placeholders["global_inputs"] = features["ginc"]
     placeholders["symmetries"] = tf.concat(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.random.uniform([2],minval=0,maxval=self.pos_len,dtype=tf.int32))
+    print("****************Reached debugging checkpoint*************")
 
     if mode == tf.estimator.ModeKeys.PREDICT:
       model = Model(model_config,pos_len,placeholders,is_training=False)
