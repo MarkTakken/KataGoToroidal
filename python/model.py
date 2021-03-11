@@ -880,7 +880,7 @@ class Model:
 
     self.assert_batched_shape("bin_inputs",bin_inputs,self.bin_input_shape)
     self.assert_batched_shape("global_inputs",global_inputs,self.global_input_shape)
-    self.assert_shape("symmetries",symmetries,[5])
+    self.assert_shape("symmetries",symmetries,[3])
     self.assert_batched_shape("include_history",include_history,[5])
 
     self.bin_inputs = bin_inputs
