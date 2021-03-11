@@ -96,6 +96,7 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
   //Width and height of the board to use when writing data, typically 19
   const int dataBoardLen = cfg.getInt("dataBoardLen",9,37);
+  assert(dataBoardLen == 13);
   const int inputsVersion =
     cfg.contains("inputsVersion") ?
     cfg.getInt("inputsVersion",0,10000) :
