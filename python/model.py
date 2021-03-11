@@ -619,7 +619,7 @@ class Model:
     if Space.NETSPACE == Space.PLANAR:
       return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
     elif Space.NETSPACE == Space.TOROIDAL:
-      return tf.nn.conv2d(Model.pad_toroidal(x,w.shape[2:]),w,strides=[1,1,1,1],padding='VALID')
+      return tf.nn.conv2d(Model.pad_toroidal(x,w.shape[1:3]),w,strides=[1,1,1,1],padding='VALID')
     else:
       raise Exception("Space not set correctly")
 
