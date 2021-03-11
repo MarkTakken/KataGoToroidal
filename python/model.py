@@ -608,7 +608,7 @@ class Model:
 
   @staticmethod
   def pad_toroidal(tensor,yx_pad):
-    (y_pad,x_pad) = yx_pad
+    (y_pad,x_pad) = [yx_pad[0]//2,yx_pad[1]//2]
     ysize,xsize = tensor.shape[1:3]
     print(tensor.shape)
     tensor = tf.concat([tf.gather(tensor,range(ysize-y_pad,ysize),axis=1),tensor,tf.gather(tensor,range(y_pad),axis=1)],axis=1)
