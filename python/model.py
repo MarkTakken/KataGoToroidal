@@ -609,10 +609,10 @@ class Model:
   @staticmethod
   def pad_toroidal(tensor,yx_pad):
     (y_pad,x_pad) = yx_pad
-    (nsize,csize,ysize,xsize) = tensor.shape
+    ysize,xsize = tensor.shape[1:3]
     print(tensor.shape)
-    tensor = tf.concat([tf.gather(tensor,range(ysize-y_pad,ysize),axis=2),tensor,tf.gather(tensor,range(y_pad),axis=2)],axis=2)
-    tensor = tf.concat([tf.gather(tensor,range(xsize-x_pad,xsize),axis=3),tensor,tf.gather(tensor,range(x_pad),axis=3)],axis=3)
+    tensor = tf.concat([tf.gather(tensor,range(ysize-y_pad,ysize),axis=1),tensor,tf.gather(tensor,range(y_pad),axis=1)],axis=1)
+    tensor = tf.concat([tf.gather(tensor,range(xsize-x_pad,xsize),axis=2),tensor,tf.gather(tensor,range(x_pad),axis=2)],axis=2)
     return tensor
 
   def conv2d(self, x, w):
