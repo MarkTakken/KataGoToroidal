@@ -55,6 +55,8 @@ parser.add_argument('-verbose', help='verbose', required=False, action='store_tr
 parser.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
 args = vars(parser.parse_args())
 
+print(args)
+
 traindir = args["traindir"]
 datadir = args["datadir"]
 exportdir = args["exportdir"]
