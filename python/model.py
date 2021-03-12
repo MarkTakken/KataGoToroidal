@@ -1708,7 +1708,7 @@ class ModelUtils:
 
     placeholders["global_inputs"] = features["ginc"]
     placeholders["symmetries"] = tf.greater(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
-    placeholders["xy_shift"] = tf.random.uniform([2],minval=0,maxval=self.pos_len,dtype=tf.int32)
+    placeholders["xy_shift"] = tf.random.uniform([2],minval=0,maxval=13,dtype=tf.int32) #Only for data length = 13!
     print("****************Reached debugging checkpoint*************")
 
     if mode == tf.estimator.ModeKeys.PREDICT:
