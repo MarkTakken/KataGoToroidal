@@ -606,20 +606,22 @@ class Model:
       self.reg_variables_tiny.append(variable)
     return variable
 
+  #Note: Assumes the filter is a square!  Does not assume the input tensor is a square
   @staticmethod
-  def pad_toroidal(tensor,yx_pad):
-    (y_pad,x_pad) = [yx_pad[0]//2,yx_pad[1]//2]
+  def pad_toroidal(tensor,pad_diam):
+    pad_size = pad_diam // 2
+    if pad_size == 0:
+      return tensor
     ysize,xsize = tensor.shape[1:3]
-    print(tensor.shape)
-    tensor = tf.concat([tf.gather(tensor,list(range(ysize-y_pad,ysize)),axis=1),tensor,tf.gather(tensor,list(range(y_pad)),axis=1)],axis=1)
-    tensor = tf.concat([tf.gather(tensor,list(range(xsize-x_pad,xsize)),axis=2),tensor,tf.gather(tensor,list(range(x_pad)),axis=2)],axis=2)
+    tensor = tf.concat([tf.gather(tensor,list(range(ysize-pad_size,ysize)),axis=1),tensor,tf.gather(tensor,list(range(pad_size)),axis=1)],axis=1)
+    tensor = tf.concat([tf.gather(tensor,list(range(xsize-pad_size,xsize)),axis=2),tensor,tf.gather(tensor,list(range(pad_size)),axis=2)],axis=2)
     return tensor
 
   def conv2d(self, x, w):
     if Space.NETSPACE == Space.PLANAR:
       return tf.nn.conv2d(x, w, strides=[1,1,1,1], padding='SAME')
     elif Space.NETSPACE == Space.TOROIDAL:
-      return tf.nn.conv2d(Model.pad_toroidal(x,w.shape[1:3]),w,strides=[1,1,1,1],padding='VALID')
+      return tf.nn.conv2d(Model.pad_toroidal(x,w.shape[0]),w,strides=[1,1,1,1],padding='VALID')
     else:
       raise Exception("Space not set correctly")
 
@@ -627,7 +629,7 @@ class Model:
     if Space.NETSPACE == Space.PLANAR:
       return tf.nn.atrous_conv2d(x, w, rate = dilation, padding='SAME')
     elif Space.NETSPACE == Space.TOROIDAL:
-      return tf.nn.atrous_conv2d(pad_toroidal(x,w.shape[2:]),w,rate = dilation,padding='VALID')
+      return tf.nn.atrous_conv2d(Model.pad_toroidal(x,w.shape[0]),w,rate = dilation,padding='VALID')
 
   def apply_symmetry(self,tensor,symmetries,xy_shift,inverse):
     ud = symmetries[0]
