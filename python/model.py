@@ -631,15 +631,12 @@ class Model:
     elif Space.NETSPACE == Space.TOROIDAL:
       return tf.nn.atrous_conv2d(Model.pad_toroidal(x,w.shape[0]),w,rate = dilation,padding='VALID')
 
-  def apply_symmetry(self,tensor,symmetries,xy_shift,inverse):
+  def apply_symmetry(self,tensor,symmetries,inverse):
     ud = symmetries[0]
     lr = symmetries[1]
     transp = symmetries[2]
-    assert(xy_shift.shape == (2,))
 
     if not inverse:
-      if Space.SETSPACE == Space.TOROIDAL:
-        tensor = tf.roll(tensor, shift=xy_shift, axis=[1,2])
       tensor = tf.cond(
         ud,
         lambda: tf.reverse(tensor,[1]),
@@ -667,9 +664,6 @@ class Model:
         lambda: tf.reverse(tensor,[2]),
         lambda: tensor
       )
-      if Space.SETSPACE == Space.TOROIDAL:
-        inv_shift = -xy_shift
-        tensor = tf.roll(tensor, shift=inv_shift, axis=[1,2])
 
     return tensor
 
@@ -877,7 +871,6 @@ class Model:
                     tf.compat.v1.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
     symmetries = (placeholders["symmetries"] if "symmetries" in placeholders else
                   tf.compat.v1.placeholder(tf.bool, [3], name="symmetries"))
-    xy_shift = (placeholders["xy_shift"] if "xy_shift" in placeholders else tf.compat.v1.placeholder(tf.int32,[2],name="xy_shift"))
     include_history = (placeholders["include_history"] if "include_history" in placeholders else
                        tf.compat.v1.placeholder(tf.float32, [None] + [5], name="include_history"))
 
@@ -898,7 +891,7 @@ class Model:
     mask_before_symmetry = cur_layer[:,:,:,0:1]
 
     #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
-    cur_layer = self.apply_symmetry(cur_layer,symmetries,xy_shift,inverse=False)
+    cur_layer = self.apply_symmetry(cur_layer,symmetries,inverse=False)
 
     #Apply history transform to turn off various features randomly.
     #We do this by building a matrix for each batch element, mapping input channels to possibly-turned off channels.
@@ -1094,7 +1087,7 @@ class Model:
     # self.add_lr_factor("p2/w:0",0.25)
 
     #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
-    policy_output = self.apply_symmetry(p2_layer,symmetries,xy_shift,inverse=True)
+    policy_output = self.apply_symmetry(p2_layer,symmetries,inverse=True)
     policy_output = tf.reshape(policy_output, [-1] + self.policy_output_shape_nopass)
 
     #Add pass move based on the global g values
@@ -1216,22 +1209,22 @@ class Model:
     #No need for separate mask since v1_layer is already zero outside of mask bounds.
     ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2) * mask
     self.vownership_conv = ("vownership",1,v1_num_channels,1)
-    ownership_output = self.apply_symmetry(ownership_output,symmetries,xy_shift,inverse=True)
+    ownership_output = self.apply_symmetry(ownership_output,symmetries,inverse=True)
     ownership_output = tf.reshape(ownership_output, [-1] + self.ownership_target_shape, name = "ownership_output")
 
     scoring_output = self.conv_only_block("vscoring",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2) * mask
     self.vscoring_conv = ("vscoring",1,v1_num_channels,1)
-    scoring_output = self.apply_symmetry(scoring_output,symmetries,xy_shift,inverse=True)
+    scoring_output = self.apply_symmetry(scoring_output,symmetries,inverse=True)
     scoring_output = tf.reshape(scoring_output, [-1] + self.scoring_target_shape, name = "scoring_output")
 
     futurepos_output = self.conv_only_block("futurepos",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=2, scale_initial_weights=0.2) * mask
     self.futurepos_conv = ("futurepos",1,trunk_num_channels,2)
-    futurepos_output = self.apply_symmetry(futurepos_output,symmetries,xy_shift,inverse=True)
+    futurepos_output = self.apply_symmetry(futurepos_output,symmetries,inverse=True)
     futurepos_output = tf.reshape(futurepos_output, [-1] + self.futurepos_target_shape, name = "futurepos_output")
 
     seki_output = self.conv_only_block("seki",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=4, scale_initial_weights=0.2) * mask
     self.seki_conv = ("seki",1,trunk_num_channels,4)
-    seki_output = self.apply_symmetry(seki_output,symmetries,xy_shift,inverse=True)
+    seki_output = self.apply_symmetry(seki_output,symmetries,inverse=True)
     seki_output = tf.reshape(seki_output, [-1] + self.seki_output_shape, name = "seki_output")
 
     # self.add_lr_factor("v2/w:0",0.25)
@@ -1708,7 +1701,6 @@ class ModelUtils:
 
     placeholders["global_inputs"] = features["ginc"]
     placeholders["symmetries"] = tf.greater(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))
-    placeholders["xy_shift"] = tf.random.uniform([2],minval=0,maxval=13,dtype=tf.int32) #Only for data length = 13!
     print("****************Reached debugging checkpoint*************")
 
     if mode == tf.estimator.ModeKeys.PREDICT:
