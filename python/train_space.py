@@ -2,4 +2,4 @@ class Space:
     PLANAR = 0
     TOROIDAL = 1
     SETSPACE = TOROIDAL
-    NETSPACE = TOROIDAL
+    NETSPACE = PLANAR
