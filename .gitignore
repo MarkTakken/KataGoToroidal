@@ -10,6 +10,7 @@ tmp*.txt
 
 TestRun
 cpp/configs/selfplay1.cfg
+cpp/configs/gatekeeper1.cfg
 
 cpp/write
 #cpp/runtests
