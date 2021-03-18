@@ -121,7 +121,7 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
     return MainCmds::printclockinfo(argc-1,&argv[1]);
   else if(subcommand == "sandbox")
     return MainCmds::sandbox();
-  else if(subcommand == "version") {
+  else if(subcommand == "version" || subcommand == "protocol_version") {
     cout << Version::getKataGoVersionFullInfo() << std::flush;
     return 0;
   }
