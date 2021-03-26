@@ -1,5 +1,5 @@
 class Space:
     PLANAR = 0
     TOROIDAL = 1
-    SETSPACE = TOROIDAL
+    SETSPACE = PLANAR
     NETSPACE = PLANAR
