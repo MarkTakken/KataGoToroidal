@@ -1696,6 +1696,12 @@ static void tuneTransform(
       cfg.conv3x3.compileOptions() + maybeFP16CompileOptions,
       program, compileError
     ); }
+    else if (Space::NETSPACE == Space::KLEIN) {
+    compileSuc = tryCompileProgram(
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWKlein,
+      cfg.conv3x3.compileOptions() + maybeFP16CompileOptions,
+      program, compileError
+    ); }
     else throw ("Invalid board space");
     if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
     cl_kernel kernel = clCreateKernel(program, "transform", &err);

@@ -71,6 +71,16 @@ Loc Location::getNewLoc(Loc loc, short offset, int x_size, int y_size)
       else throw "Invalid offset given";
     }
     return newLoc;
+  }
+  else if (Space::SETSPACE == Space::KLEIN) {
+    if (newLoc <= x_size) newLoc += (x_size+1)*y_size;
+    else if (newLoc >= (x_size+1)*(y_size+1) + 1) newLoc -= (x_size+1)*y_size;
+    if (newLoc % (x_size+1) == 0) {
+      if (Location::getX(loc,x_size) == x_size-1) newLoc = (x_size+1)*(y_size+2)+1-newLoc;
+      else if (Location::getX(loc,x_size) == 0) newLoc = (x_size+1)*(y_size+2)-1-newLoc;
+      else throw "Invalid offset given";
+    }
+    return newLoc;
   } 
   else throw "Unrecognized board space";
 }

@@ -13,5 +13,7 @@ int Space::parseSpace(const std::string& sOrig)
     return Space::PLANAR;
   else if (lowercased == "toroidal" || lowercased == "torus")
     return Space::TOROIDAL;
+  else if (lowercased == "klein" || lowercased == "klein bottle" || lowercased == "klein_bottle")
+    return Space::KLEIN;
   else throw IOError("Unknown board space: " + lowercased);
 }

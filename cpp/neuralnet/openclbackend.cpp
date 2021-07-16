@@ -219,6 +219,27 @@ struct CompiledPrograms {
     winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
       "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHWToroidal,
       tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
+    );} 
+    else if (Space::NETSPACE == Space::KLEIN) {
+    conv2dNCHWProgram = compileProgram(
+      "conv2dNCHWProgram", context, deviceIdsToUse, OpenCLKernels::conv2dNCHWKlein,
+      maybeFP16CompileOptions
+    ); 
+    winogradConv3x3NCHWTransformProgram = compileProgram(
+      "winogradConv3x3NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWKlein,
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
+    );
+    winogradConv3x3NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv3x3NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHWKlein,
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
+    );
+    winogradConv5x5NCHWTransformProgram = compileProgram(
+      "winogradConv5x5NCHWTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradTransformNCHWKlein,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
+    );
+    winogradConv5x5NCHWBNReluTransformProgram = compileProgram(
+      "winogradConv5x5NCHWBNReluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNReluTransformNCHWKlein,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions
     );}  
     else throw ("Invalid board space");
 

@@ -12,6 +12,7 @@ namespace Space
 {
   const int PLANAR = 0;
   const int TOROIDAL = 1;
+  const int KLEIN = 2;
   extern int SETSPACE;
   extern int NETSPACE;
   int parseSpace(const std::string& sOrig);

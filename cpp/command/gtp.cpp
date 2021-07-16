@@ -1796,6 +1796,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "planar";
       else if (Space::SETSPACE == Space::TOROIDAL)
         response = "toroidal";
+      else if (Space::SETSPACE == Space::KLEIN)
+        response = "klein bottle";
       else {
         response = "Space is not set correctly.";
         responseIsError = true;
@@ -1824,6 +1826,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
         response = "planar";
       else if (Space::NETSPACE == Space::TOROIDAL)
         response = "toroidal";
+      else if (Space::NETSPACE == Space::KLEIN)
+        response = "klein bottle";
       else {
         response = "Network space is not set correctly.";
         responseIsError = true;

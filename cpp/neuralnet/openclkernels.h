@@ -10,12 +10,15 @@ namespace OpenCLKernels {
   extern std::string common;
   extern std::string conv2dNCHWPlanar;
   extern std::string conv2dNCHWToroidal;
+  extern std::string conv2dNCHWKlein;
   //extern std::string conv2dNCHW;
   extern std::string winogradTransformNCHWPlanar;
   extern std::string winogradTransformNCHWToroidal;
+  extern std::string winogradTransformNCHWKlein;
   //extern std::string winogradTransformNCHW;
   extern std::string winogradBNReluTransformNCHWPlanar;
   extern std::string winogradBNReluTransformNCHWToroidal;
+  extern std::string winogradBNReluTransformNCHWKlein;
   //extern std::string winogradBNReluTransformNCHW;
   extern std::string winogradUntransformNCHW;
   extern std::string scaleBiasMaskNCHW;
