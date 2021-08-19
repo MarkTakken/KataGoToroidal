@@ -328,6 +328,13 @@ __kernel void conv2dNCHW(
           real result = OUTPUTTILE(oty,otx);
           WRITEOUTPUT(n, oc, yBase+oty, xBase+otx, result); //Unnecessary extra addition?
         }
+        //int wrap_y = oy, wrap_x = ox;
+        //if (wrap_x <= -1) wrap_x += xSize;
+        //else if (wrap_x >= xSize) wrap_x -= xSize;
+        //if (wrap_y <= -1) wrap_y += ySize;
+        //else if (wrap_y >= ySize) wrap_y -= ySize;
+        //real result = OUTPUTTILE(oty,otx);
+        //WRITEOUTPUT(n, oc, wrap_y, wrap_x, result);
       }
     }
   } //Close loop over batch
@@ -704,14 +711,16 @@ __kernel void transform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       real value = ZERO;
-      int wrap_y = y;
-      int wrap_x = x;
-      if (wrap_x <= -1) wrap_x += xSize;
-      else if (wrap_x >= xSize) wrap_x -= xSize;
-      if (wrap_y <= -1) wrap_y += ySize;
-      else if (wrap_y >= ySize) wrap_y -= ySize;
-      int xy = wrap_y * xSize + wrap_x;
-      value = INPUT(nic,xy);
+      if (n < nSize && ic < icSize) {
+        int wrap_y = y;
+        int wrap_x = x;
+        if (wrap_x <= -1) wrap_x += xSize;
+        else if (wrap_x >= xSize) wrap_x -= xSize;
+        if (wrap_y <= -1) wrap_y += ySize;
+        else if (wrap_y >= ySize) wrap_y -= ySize;
+        int xy = wrap_y * xSize + wrap_x;
+        value = INPUT(nic,xy);
+      }
       WTILE(subY,subX) = value;
     }
   }
@@ -890,14 +899,16 @@ __kernel void transform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       real value = ZERO;
-      int wrap_y = y;
-      int wrap_x = x;
-      if (wrap_y <= -1) wrap_y += ySize;
-      else if (wrap_y >= ySize) wrap_y -= ySize;
-      if (wrap_x <= -1) {wrap_x += xSize; wrap_y = ySize-1-wrap_y;}
-      else if (wrap_x >= xSize) {wrap_x -= xSize; wrap_y = ySize-1-wrap_y;}
-      int xy = wrap_y * xSize + wrap_x;
-      value = INPUT(nic,xy);
+      if (n < nSize && ic < icSize) {
+        int wrap_y = y;
+        int wrap_x = x;
+        if (wrap_y <= -1) wrap_y += ySize;
+        else if (wrap_y >= ySize) wrap_y -= ySize;
+        if (wrap_x <= -1) {wrap_x += xSize; wrap_y = ySize-1-wrap_y;}
+        else if (wrap_x >= xSize) {wrap_x -= xSize; wrap_y = ySize-1-wrap_y;}
+        int xy = wrap_y * xSize + wrap_x;
+        value = INPUT(nic,xy);
+      }
       WTILE(subY,subX) = value;
     }
   }
@@ -1274,14 +1285,16 @@ __kernel void bnReluTransform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       real value = ZERO;
-      int wrap_y = y;
-      int wrap_x = x;
-      if (wrap_x <= -1) wrap_x += xSize;
-      else if (wrap_x >= xSize) wrap_x -= xSize;
-      if (wrap_y <= -1) wrap_y += ySize;
-      else if (wrap_y >= ySize) wrap_y -= ySize;
-      int xy = wrap_y * xSize + wrap_x;
-      value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
+      if (n < nSize && ic < icSize) {
+        int wrap_y = y;
+        int wrap_x = x;
+        if (wrap_x <= -1) wrap_x += xSize;
+        else if (wrap_x >= xSize) wrap_x -= xSize;
+        if (wrap_y <= -1) wrap_y += ySize;
+        else if (wrap_y >= ySize) wrap_y -= ySize;
+        int xy = wrap_y * xSize + wrap_x;
+        value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
+      }
       WTILE(subY,subX) = value;
     }
   }
@@ -1468,14 +1481,16 @@ __kernel void bnReluTransform(
     for(int subX = 0; subX < INTILE_XSIZE; subX++) {
       int x = tileX * OUTTILE_XSIZE + subX + INTILE_XOFFSET;
       real value = ZERO;
-      int wrap_y = y;
-      int wrap_x = x;
-      if (wrap_y <= -1) wrap_y += ySize;
-      else if (wrap_y >= ySize) wrap_y -= ySize;
-      if (wrap_x <= -1) {wrap_x += xSize; wrap_y = ySize-1-wrap_y;}
-      else if (wrap_x >= xSize) {wrap_x -= xSize; wrap_y = ySize-1-wrap_y;}
-      int xy = wrap_y * xSize + wrap_x;
-      value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
+      if (n < nSize && ic < icSize) {
+        int wrap_y = y;
+        int wrap_x = x;
+        if (wrap_y <= -1) wrap_y += ySize;
+        else if (wrap_y >= ySize) wrap_y -= ySize;
+        if (wrap_x <= -1) {wrap_x += xSize; wrap_y = ySize-1-wrap_y;}
+        else if (wrap_x >= xSize) {wrap_x -= xSize; wrap_y = ySize-1-wrap_y;}
+        int xy = wrap_y * xSize + wrap_x;
+        value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
+      }
       WTILE(subY,subX) = value;
     }
   }
@@ -1751,6 +1766,16 @@ __kernel void untransform(
         real result = WTILE(subY,subX);
         WRITEOUTPUT(noc,y,x,result);
       }
+      //if (tileX < numTilesX && tileY < numTilesY && n < nSize) {
+      //  real result = WTILE(subY,subX);
+      //  int wrap_y = y;
+      //  int wrap_x = x;
+      //  if (wrap_x <= -1) wrap_x += xSize;
+      //  else if (wrap_x >= xSize) wrap_x -= xSize;
+      //  if (wrap_y <= -1) wrap_y += ySize;
+      //  else if (wrap_y >= ySize) wrap_y -= ySize;
+      //  WRITEOUTPUT(noc,wrap_y,wrap_x,result);
+      //}
     }
   }
 

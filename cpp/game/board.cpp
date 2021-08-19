@@ -2138,10 +2138,10 @@ void Board::calculateIndependentLifeAreaHelper(
           //Stone of player owning the area is in atari? Treat as seki.
           (colors[loc] == basicArea[loc] && getNumLiberties(loc) == 1) ||
           //Touches dame? Treat as seki
-          ((colors[loc+ADJ0] == C_EMPTY && basicArea[loc+ADJ0] == C_EMPTY) ||
-           (colors[loc+ADJ1] == C_EMPTY && basicArea[loc+ADJ1] == C_EMPTY) ||
-           (colors[loc+ADJ2] == C_EMPTY && basicArea[loc+ADJ2] == C_EMPTY) ||
-           (colors[loc+ADJ3] == C_EMPTY && basicArea[loc+ADJ3] == C_EMPTY))
+          ((colors[Location::getNewLoc(loc,ADJ0,x_size,y_size)] == C_EMPTY && basicArea[Location::getNewLoc(loc,ADJ0,x_size,y_size)] == C_EMPTY) ||
+           (colors[Location::getNewLoc(loc,ADJ1,x_size,y_size)] == C_EMPTY && basicArea[Location::getNewLoc(loc,ADJ1,x_size,y_size)] == C_EMPTY) ||
+           (colors[Location::getNewLoc(loc,ADJ2,x_size,y_size)] == C_EMPTY && basicArea[Location::getNewLoc(loc,ADJ2,x_size,y_size)] == C_EMPTY) ||
+           (colors[Location::getNewLoc(loc,ADJ3,x_size,y_size)] == C_EMPTY && basicArea[Location::getNewLoc(loc,ADJ3,x_size,y_size)] == C_EMPTY))
         ) {
           Player pla = basicArea[loc];
           isSeki[loc] = true;
