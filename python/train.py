@@ -24,6 +24,8 @@ from model import Model, Target_vars, Metrics, ModelUtils
 import modelconfigs
 import tfrecordio
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 #Command and args-------------------------------------------------------------------
 
 description = """
@@ -725,6 +727,11 @@ while True:
         CheckpointSaverListenerFunction(save_history)
       ]
     )
+    """
+    estimator.evaluate(
+      (lambda mode, input_context=None: train_input_fn(train_files_to_use,num_train_files,batches_to_use_so_far,mode,input_context))
+    )
+    """
     trainlog("Finished training subepoch!")
 
     if swa_sub_epoch_scale is not None:
