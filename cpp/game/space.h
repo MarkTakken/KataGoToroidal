@@ -15,6 +15,7 @@ namespace Space
   const int KLEIN = 2;
   extern int SETSPACE;
   extern int NETSPACE;
+  extern bool AVERAGE;
   int parseSpace(const std::string& sOrig);
 }
 

@@ -40,7 +40,7 @@ static const vector<string> knownCommands = {
   "markHistory",
   "printMarkHistory",
   "play",
-  "playprint",
+  "playprint (p)",
   "undo",
 
   //GTP extension - specify rules
@@ -57,7 +57,7 @@ static const vector<string> knownCommands = {
   "selfplay_game",
 
   "genmove",
-  "genmoveprint",
+  "genmoveprint (g)",
   "genmove_debug", //Prints additional info to stderr
   "search_debug", //Prints additional info to stderr, doesn't actually make the move
 
@@ -2372,7 +2372,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "playprint") {
+    else if(command == "playprint" || command == "p") {
       Player pla = engine->bot->getRootPla();
       Loc loc;
       if(pieces.size() != 1) {
@@ -2479,7 +2479,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       }
     }
 
-    else if(command == "genmoveprint") {
+    else if(command == "genmoveprint" || command == "g") {
       Player pla = engine->bot->getRootPla();
       bool debug = false;
       bool playChosenMove = true;

@@ -957,8 +957,10 @@ struct ConvLayer {
           float tmp[maxTileYSize][maxTileXSize];
           for(int subY = 0; subY < convYSize; subY++) {
             for(int subX = 0; subX < convXSize; subX++) {
-              if(oc < outChannels && ic < inChannels)
-                tmp[subY][subX] = desc->weights[((oc * inChannels + ic) * convYSize + subY) * convXSize + subX];
+              if(oc < outChannels && ic < inChannels) {
+                if (!Space::AVERAGE) tmp[subY][subX] = desc->weights[((oc * inChannels + ic) * convYSize + subY) * convXSize + subX];
+                else tmp[subY][subX] = (desc->weights[((oc * inChannels + ic) * convYSize + subY) * convXSize + subX] + desc->weights[((oc * inChannels + ic) * convYSize + convYSize-1-subY) * convXSize + subX])/2; //Average top and bottom of kernel
+              }
               else
                 tmp[subY][subX] = 0.0f;
             }
@@ -1676,6 +1678,7 @@ struct Trunk {
   ) const {
 
     initialConv->apply(handle,batchSize,input,trunk,convWorkspace,convWorkspace2);
+    //debugPrint4D(string("Initial bin features"), handle, input, batchSize, initialConv->inChannels, nnXLen, nnYLen, false);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
     bool usingNHWC = false;
@@ -1690,7 +1693,7 @@ struct Trunk {
 
     for(int i = 0; i<blocks.size(); i++) {
       #ifdef DEBUG_INTERMEDIATE_VALUES
-      debugPrint4D(string("Trunk before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+      debugPrint4D(string("Trunk before block " + Global::intToString(i)), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
       #endif
 
       if(blocks[i].first == ORDINARY_BLOCK_KIND) {
