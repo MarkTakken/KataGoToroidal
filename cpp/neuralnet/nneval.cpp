@@ -1,5 +1,6 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
+#include "../game/space.h"
 
 using namespace std;
 
@@ -115,7 +116,7 @@ NNEvaluator::NNEvaluator(
    m_currentResultBufsIdx(0),
    m_oldestResultBufsIdx(0)
 {
-  if(nnXLen > NNPos::MAX_BOARD_LEN)
+  if(nnXLen > NNPos::MAX_BOARD_LEN && !Space::DUPLICATE)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
   if(nnYLen > NNPos::MAX_BOARD_LEN)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));

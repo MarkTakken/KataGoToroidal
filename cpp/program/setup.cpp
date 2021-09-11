@@ -85,6 +85,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       debugSkipNeuralNetDefault;
 
     int nnXLen = std::max(defaultNNXLen,7);
+    if (Space::DUPLICATE) nnXLen *= 2;
     int nnYLen = std::max(defaultNNYLen,7);
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))

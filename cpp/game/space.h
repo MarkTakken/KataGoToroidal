@@ -16,6 +16,7 @@ namespace Space
   extern int SETSPACE;
   extern int NETSPACE;
   extern bool AVERAGE;
+  extern bool DUPLICATE;
   int parseSpace(const std::string& sOrig);
 }
 

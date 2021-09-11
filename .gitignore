@@ -9,6 +9,7 @@ __pycache__
 tmp*.txt
 
 TestRun
+TestRunFormer
 KataTorRun
 cpp/configs/selfplay1.cfg
 cpp/configs/gatekeeper1.cfg

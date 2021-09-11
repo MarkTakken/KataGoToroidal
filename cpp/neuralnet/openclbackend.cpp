@@ -707,7 +707,8 @@ static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_m
 
 static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC) {
   vector<float> values;
-  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * xSize * ySize, values);
+  int xySize = xSize * ySize;
+  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * xySize, values);
   cout << "=========================================================" << endl;
   cout << name << endl;
   int i = 0;
@@ -1026,15 +1027,16 @@ struct ConvLayer {
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem convWorkspace, cl_mem convWorkspace2) {
     if(convXSize == 1 && convYSize == 1) {
       int filterStride = 0; //Reuse same filter for all matrices in batch
-      int inputStride = nnXLen*nnYLen * inChannels;
-      int outputStride = nnXLen*nnYLen * outChannels;
+      int nnXYLen = nnXLen*nnYLen;
+      int inputStride = nnXYLen * inChannels;
+      int outputStride = nnXYLen * outChannels;
       cl_int err;
       MAYBE_EVENT;
       err = doStridedBatchedXGemmDirect_KM_KN_NM(
         handle->xgemmDirectStridedBatchedNNKernel,
         handle->commandQueue,
         handle->tuneParams,
-        nnXLen*nnYLen, outChannels, inChannels,
+        nnXYLen, outChannels, inChannels,
         inputStride, filterStride, outputStride,
         input, filter, output,
         batchSize,
@@ -2023,7 +2025,7 @@ struct Model {
 
     nnXLen = nnX;
     nnYLen = nnY;
-    if(nnXLen > NNPos::MAX_BOARD_LEN)
+    if(nnXLen > NNPos::MAX_BOARD_LEN && !Space::DUPLICATE)
       throw StringError(Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
         nnXLen, NNPos::MAX_BOARD_LEN
       ));
@@ -2219,7 +2221,8 @@ struct Buffers {
   Buffers& operator=(const Buffers&) = delete;
 
   Buffers(ComputeHandleInternal* handle, const Model& m) {
-    size_t batchXYElts = (size_t)m.maxBatchSize * m.nnXLen * m.nnYLen;
+    size_t batchXYElts;
+    batchXYElts = (size_t)m.maxBatchSize * m.nnXLen * m.nnYLen;
     size_t batchElts = (size_t)m.maxBatchSize;
 
     bool useFP16 = handle->usingFP16Storage;
@@ -2432,39 +2435,40 @@ struct InputBuffers {
 
     int xSize = nnXLen;
     int ySize = nnYLen;
+    int xySize = xSize * ySize;
 
     maxBatchSize = maxBatchSz;
-    singleInputElts = (size_t)m.numInputChannels * xSize * ySize;
+    singleInputElts = (size_t)m.numInputChannels * xySize;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
     singlePolicyPassResultElts = (size_t)(1);
-    singlePolicyResultElts = (size_t)(xSize * ySize);
+    singlePolicyResultElts = (size_t)(xySize);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
-    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xSize * ySize;
+    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * xySize;
 
     assert(NNModelVersion::getNumSpatialFeatures(m.version) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.version) == m.numInputGlobalChannels);
 
-    userInputBufferElts = (size_t)m.numInputChannels * maxBatchSize * xSize * ySize;
+    userInputBufferElts = (size_t)m.numInputChannels * maxBatchSize * xySize;
     userInputGlobalBufferElts = (size_t)m.numInputGlobalChannels * maxBatchSize;
     policyPassResultBufferElts = (size_t)maxBatchSize * (1);
-    policyResultBufferElts = (size_t)maxBatchSize * (xSize * ySize);
+    policyResultBufferElts = (size_t)maxBatchSize * (xySize);
     valueResultBufferElts = (size_t)maxBatchSize * m.numValueChannels;
     scoreValueResultBufferElts = (size_t)maxBatchSize * m.numScoreValueChannels;
-    ownershipResultBufferElts = (size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels;
+    ownershipResultBufferElts = (size_t)maxBatchSize * xySize * m.numOwnershipChannels;
 
-    userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
-    userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * xSize * ySize];
+    userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * xySize];
+    userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * xySize];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
 
     policyPassResults = new float[(size_t)maxBatchSize * 1];
-    policyResults = new float[(size_t)maxBatchSize * xSize * ySize];
-    policyResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize];
+    policyResults = new float[(size_t)maxBatchSize * xySize];
+    policyResultsHalf = new half_t[(size_t)maxBatchSize * xySize];
     valueResults = new float[(size_t)maxBatchSize * m.numValueChannels];
 
     scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
-    ownershipResults = new float[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
-    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * xSize * ySize * m.numOwnershipChannels];
+    ownershipResults = new float[(size_t)maxBatchSize * xySize * m.numOwnershipChannels];
+    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * xySize * m.numOwnershipChannels];
   }
 
   ~InputBuffers() {
@@ -2514,7 +2518,7 @@ void NeuralNet::getOutput(
   assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
-
+  
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
     float* rowSpatialInput = inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
     float* rowGlobalInput = inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);

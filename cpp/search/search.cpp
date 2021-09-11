@@ -166,7 +166,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
 {
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
-  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  if (!Space::DUPLICATE) assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
   rootKoHashTable = new KoHashTable();
