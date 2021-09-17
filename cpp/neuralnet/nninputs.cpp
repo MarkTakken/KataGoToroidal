@@ -518,13 +518,11 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
 //-------------------------------------------------------------------------------------------------------------
 
 static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse, bool final_average) {
-  bool transpose = (symmetry & 0x4) != 0 && hSize == wSize;
-  bool swapX = (symmetry & 0x2) != 0;
-  bool swapY = (symmetry & 0x1) != 0;
-  if (final_average) {
-    assert(!useNHWC);
-    assert(reverse);
-  }
+  bool transpose = (symmetry & 0x4) != 0 && (hSize == wSize); //4,5,6,7
+  bool swapX = (symmetry & 0x2) != 0; //2,3,6,7
+  bool swapY = (symmetry & 0x1) != 0; //1,3,5,7
+  if (swapX && !final_average) swapY ^= true;
+  if (final_average) {assert(!useNHWC); assert(reverse);}
   if(transpose && !reverse)
     std::swap(swapX,swapY);
   if(useNHWC) {
@@ -555,30 +553,32 @@ static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize,
     }
   }
   else {
+    if (Space::DUPLICATE) assert(hSize == 2*wSize || wSize == 2*hSize);
+    int square = min(hSize,wSize);
     int ncSize = nSize * cSize;
     int ncStride = hSize * wSize;
+    int ncStrideNew = final_average ? ncStride/2 : ncStride;
     int hStride = wSize;
     int wStride = 1;
-    int hBaseNew = 0; int hStrideNew = hStride;
+    int hBaseNew = 0; int hStrideNew = (final_average || transpose) ? square : hStride;
     int wBaseNew = 0; int wStrideNew = wStride;
 
-    if(swapY) { hBaseNew = (hSize-1) * hStrideNew; hStrideNew = -hStrideNew; }
-    if(swapX) { wBaseNew = (wSize-1) * wStrideNew; wStrideNew = -wStrideNew; }
+    if(swapY) { hBaseNew = ((final_average ? square : hSize)-1) * hStrideNew; hStrideNew = -hStrideNew; }
+    if(swapX) { wBaseNew = ((final_average ? square : wSize)-1) * wStrideNew; wStrideNew = -wStrideNew; }
 
     if(transpose)
       std::swap(hStrideNew,wStrideNew);
 
     for(int nc = 0; nc<ncSize; nc++) {
-      for(int h = 0; h<hSize; h++) {
+      for(int h = 0; h<(final_average ? square : hSize); h++) {
+        int hDup = transpose ? h+square : square-1-h;
         int nchOld = nc * ncStride + h*hStride;
-        int nchOldDup;
-        if (final_average) nchOldDup = nc * ncStride + (hSize-1-h)*hStride;
-        int nchNew = nc * ncStride + hBaseNew + h*hStrideNew;
-        for(int w = 0; w<wSize; w++) {
-          if (final_average && w >= wSize/2) break;
+        int nchOldDup = nc * ncStride + hDup*hStride;;
+        int nchNew = nc * ncStrideNew + hBaseNew + h*hStrideNew;
+        for(int w = 0; w<(final_average ? square : wSize); w++) {
+          int wDup = transpose ? square-1-w : w+square;
           int nchwOld = nchOld + w*wStride;
-          int nchwOldDup;
-          if (final_average) nchwOldDup = nchOldDup + (w+wSize/2)*wStride;
+          int nchwOldDup = nchOldDup + wDup*wStride;
           int nchwNew = nchNew + wBaseNew + w*wStrideNew;
           if (!final_average) dst[nchwNew] = src[nchwOld];
           else dst[nchwNew] = (src[nchwOld] + src[nchwOldDup])/2;

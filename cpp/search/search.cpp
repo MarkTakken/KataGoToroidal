@@ -168,7 +168,7 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, const string& rSeed)
   nnYLen = nnEval->getNNYLen();
   if (!Space::DUPLICATE) assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
-  policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  policySize = NNPos::getPolicySize(!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
   rootKoHashTable = new KoHashTable();
 
   rootSafeArea = new Color[Board::MAX_ARR_SIZE];
@@ -281,9 +281,9 @@ void Search::setNNEval(NNEvaluator* nnEval) {
   nnEvaluator = nnEval;
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
-  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  if (!Space::DUPLICATE) assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
   assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
-  policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  policySize = NNPos::getPolicySize(!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
 }
 
 void Search::clearSearch() {
@@ -1452,7 +1452,7 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     //These conditions should still make it so that "cleanup" and dame-filling moves are not discouraged.
     // * When playing button go, very slightly discourage passing - so that if there are an even number of dame, filling a dame is still favored over passing.
     if(moveLoc != Board::PASS_LOC && rootBoard.ko_loc == Board::NULL_LOC) {
-      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
+      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
       if(plaOwnership <= -extreme)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
@@ -1478,7 +1478,7 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
     if(moveLoc == Board::PASS_LOC)
       extraRootPoints -= searchParams.rootEndingBonusPoints * (2.0/3.0);
     else if(rootBoard.ko_loc == Board::NULL_LOC) {
-      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
+      int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
       double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
       if(plaOwnership <= -extreme)
         extraRootPoints -= searchParams.rootEndingBonusPoints * ((-extreme - plaOwnership) / tail);
@@ -1498,7 +1498,7 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, const SearchNo
 }
 
 int Search::getPos(Loc moveLoc) const {
-  return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
+  return NNPos::locToPos(moveLoc,rootBoard.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
 }
 
 static void maybeApplyWideRootNoise(
@@ -1887,7 +1887,7 @@ void Search::selectBestChildToDescend(
     if(alreadyTried)
       continue;
 
-    Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,nnXLen,nnYLen);
+    Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
     if(moveLoc == Board::NULL_LOC)
       continue;
 
@@ -2343,7 +2343,13 @@ void Search::playoutDescend(
     selectBestChildToDescend(thread,node,bestChildIdx,bestChildMoveLoc,posesWithChildBuf,isRoot);
     if(bestChildIdx >= 0) {
       //We should absolutely be legal this time
-      assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+      //assert(thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla));
+      if (!thread.history.isLegal(thread.board,bestChildMoveLoc,thread.pla)) {
+        thread.history.printDebugInfo(cout,thread.board);
+        cout << "*******************\n"; 
+        cout << Location::getX(bestChildMoveLoc,thread.board.x_size) << ' ' << Location::getY(bestChildMoveLoc,thread.board.x_size) << '\n';
+        assert(false);
+      }
     }
   }
 

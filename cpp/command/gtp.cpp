@@ -1239,10 +1239,18 @@ struct GTPEngine {
         out << "shorttermWinlossError " << Global::strprintf("%.3f",nnOutput->shorttermWinlossError) << endl;
         out << "shorttermScoreError " << Global::strprintf("%.3f",nnOutput->shorttermScoreError) << endl;
 
+        /*
+        out << "policy debug" << endl;
+        for (int i = 0; i <= 13*13; i++) out << nnOutput->policyProbs[i] << ' ';
+        out << endl;
+        */
+
         out << "policy" << endl;
         for(int y = 0; y<board.y_size; y++) {
           for(int x = 0; x<board.x_size; x++) {
-            int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            int pos;
+            if (!Space::DUPLICATE) pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            else pos = NNPos::xyToPos(x,y,board.x_size);
             float prob = nnOutput->policyProbs[pos];
             if(prob < 0)
               out << "    NAN ";
@@ -1253,7 +1261,7 @@ struct GTPEngine {
         }
         out << "policyPass ";
         {
-          int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
+          int pos = NNPos::locToPos(Board::PASS_LOC,board.x_size,!Space::DUPLICATE ? nnOutput->nnXLen : nnOutput->nnXLen/2,nnOutput->nnYLen);
           float prob = nnOutput->policyProbs[pos];
           if(prob < 0)
             out << "    NAN "; // Probably shouldn't ever happen for pass unles the rules change, but we handle it anyways
@@ -1265,7 +1273,9 @@ struct GTPEngine {
         out << "whiteOwnership" << endl;
         for(int y = 0; y<board.y_size; y++) {
           for(int x = 0; x<board.x_size; x++) {
-            int pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            int pos;
+            if (!Space::DUPLICATE) pos = NNPos::xyToPos(x,y,nnOutput->nnXLen);
+            else pos = NNPos::xyToPos(x,y,board.x_size);
             float whiteOwn = nnOutput->whiteOwnerMap[pos];
             out << Global::strprintf("%9.7f ", whiteOwn);
           }

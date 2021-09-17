@@ -2528,6 +2528,17 @@ void NeuralNet::getOutput(
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
   }
+  /*
+  if ((inputBufs[0]->symmetry & 0x4) != 0 && Space::DUPLICATE) {
+    std::swap(gpuHandle->nnXLen,gpuHandle->nnYLen);
+    std::swap(nnXLen,nnYLen);
+    std::swap(gpuHandle->model->nnXLen,gpuHandle->model->nnYLen);
+    std::swap(gpuHandle->model->trunk->nnXLen,gpuHandle->model->trunk->nnYLen);
+    std::swap(gpuHandle->model->policyHead->nnXLen,gpuHandle->model->policyHead->nnYLen);
+    std::swap(gpuHandle->model->valueHead->nnXLen,gpuHandle->model->valueHead->nnYLen);
+    for (int row = 0; row < batchSize; row++) std::swap(outputs[row]->nnXLen,outputs[row]->nnYLen);
+  }
+  */
 
   Buffers* buffers = gpuHandle->buffers.get();
 
@@ -2716,7 +2727,8 @@ void NeuralNet::getOutput(
     //policy probabilities and white game outcome probabilities
     //Also we don't fill in the nnHash here either
     SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    policyProbs[inputBuffers->singlePolicyResultElts] = inputBuffers->policyPassResults[row];
+    if (!Space::DUPLICATE) policyProbs[inputBuffers->singlePolicyResultElts] = inputBuffers->policyPassResults[row];
+    else policyProbs[inputBuffers->singlePolicyResultElts/2] = inputBuffers->policyPassResults[row];
 
     int numValueChannels = gpuHandle->model->numValueChannels;
     assert(numValueChannels == 3);
@@ -2777,7 +2789,17 @@ void NeuralNet::getOutput(
       ASSERT_UNREACHABLE;
     }
   }
-
+  /*
+  if ((inputBufs[0]->symmetry & 0x4) != 0 && Space::DUPLICATE) {
+    std::swap(gpuHandle->nnXLen,gpuHandle->nnYLen);
+    std::swap(nnXLen,nnYLen);
+    std::swap(gpuHandle->model->nnXLen,gpuHandle->model->nnYLen);
+    std::swap(gpuHandle->model->trunk->nnXLen,gpuHandle->model->trunk->nnYLen);
+    std::swap(gpuHandle->model->policyHead->nnXLen,gpuHandle->model->policyHead->nnYLen);
+    std::swap(gpuHandle->model->valueHead->nnXLen,gpuHandle->model->valueHead->nnYLen);
+    for (int row = 0; row < batchSize; row++) std::swap(outputs[row]->nnXLen,outputs[row]->nnYLen);
+  }
+  */
 }
 
 

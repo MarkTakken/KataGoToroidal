@@ -9,6 +9,7 @@
 #include "../game/board.h"
 #include "../game/boardhistory.h"
 #include "../game/rules.h"
+#include "../game/space.h"
 
 namespace NNPos {
   constexpr int MAX_BOARD_LEN = Board::MAX_LEN;

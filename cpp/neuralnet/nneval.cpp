@@ -85,7 +85,7 @@ NNEvaluator::NNEvaluator(
    nnXLen(xLen),
    nnYLen(yLen),
    requireExactNNLen(rExactNNLen),
-   policySize(NNPos::getPolicySize(xLen,yLen)),
+   policySize(NNPos::getPolicySize(!Space::DUPLICATE ? xLen : xLen/2,yLen)),
    inputsUseNHWC(iUseNHWC),
    usingFP16Mode(useFP16Mode),
    usingNHWCMode(useNHWCMode),
@@ -428,21 +428,24 @@ void NNEvaluator::serve(
         //Illegal move filtering happens later.
         for(int y = 0; y<boardYSize; y++) {
           for(int x = 0; x<boardXSize; x++) {
-            int pos = NNPos::xyToPos(x,y,nnXLen);
+            int pos;
+            if (!Space::DUPLICATE) pos = NNPos::xyToPos(x,y,nnXLen);
+            else pos = NNPos::xyToPos(x,y,boardXSize);
             policyProbs[pos] = (float)rand.nextGaussian();
           }
         }
-        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,nnXLen,nnYLen)] = (float)rand.nextGaussian();
+        if (!Space::DUPLICATE) policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,nnXLen,nnYLen)] = (float)rand.nextGaussian();
+        else policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,boardXSize,nnYLen)] = (float)rand.nextGaussian();
 
         resultBuf->result->nnXLen = nnXLen;
         resultBuf->result->nnYLen = nnYLen;
         if(resultBuf->includeOwnerMap) {
-          float* whiteOwnerMap = new float[nnXLen*nnYLen];
+          float* whiteOwnerMap = !Space::DUPLICATE ? new float[nnXLen*nnYLen] : new float[boardXSize*nnYLen];
           for(int i = 0; i<nnXLen*nnYLen; i++)
             whiteOwnerMap[i] = 0.0;
           for(int y = 0; y<boardYSize; y++) {
             for(int x = 0; x<boardXSize; x++) {
-              int pos = NNPos::xyToPos(x,y,nnXLen);
+              int pos = NNPos::xyToPos(x,y,!Space::DUPLICATE ? nnXLen : boardXSize);
               whiteOwnerMap[pos] = (float)rand.nextGaussian() * 0.20f;
             }
           }
@@ -482,7 +485,7 @@ void NNEvaluator::serve(
       emptyOutput->nnXLen = nnXLen;
       emptyOutput->nnYLen = nnYLen;
       if(buf.resultBufs[row]->includeOwnerMap)
-        emptyOutput->whiteOwnerMap = new float[nnXLen*nnYLen];
+        emptyOutput->whiteOwnerMap = new float[!Space::DUPLICATE ? nnXLen*nnYLen : nnXLen/2*nnYLen];
       else
         emptyOutput->whiteOwnerMap = NULL;
       outputBuf.push_back(emptyOutput);
@@ -708,7 +711,7 @@ void NNEvaluator::evaluate(
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
     for(int i = 0; i<policySize; i++) {
-      Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
+      Loc loc = NNPos::posToLoc(i,xSize,ySize,!Space::DUPLICATE ? nnXLen : xSize,nnYLen);
       isLegal[i] = history.isLegal(board,loc,nextPlayer);
     }
 
@@ -717,7 +720,7 @@ void NNEvaluator::evaluate(
         Loc banned = Board::NULL_LOC;
         if(daggerMatch(board, nextPlayer, banned, symmetry)) {
           if(banned != Board::NULL_LOC) {
-            isLegal[NNPos::locToPos(banned,xSize,nnXLen,nnYLen)] = false;
+            isLegal[NNPos::locToPos(banned,xSize,!Space::DUPLICATE ? nnXLen : xSize,nnYLen)] = false;
           }
         }
       }
@@ -944,9 +947,10 @@ void NNEvaluator::evaluate(
   //Postprocess ownermap
   if(buf.result->whiteOwnerMap != NULL) {
     if(modelVersion >= 3 && modelVersion <= 10) {
-      for(int pos = 0; pos<nnXLen*nnYLen; pos++) {
-        int y = pos / nnXLen;
-        int x = pos % nnXLen;
+      for(int pos = 0; pos<(!Space::DUPLICATE ? nnXLen*nnYLen : nnXLen*nnYLen/2); pos++) {
+        int newXLen = !Space::DUPLICATE ? nnXLen : nnXLen/2;
+        int y = pos / newXLen;
+        int x = pos % newXLen;
         if(y >= board.y_size || x >= board.x_size)
           buf.result->whiteOwnerMap[pos] = 0.0f;
         else {
