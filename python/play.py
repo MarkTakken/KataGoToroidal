@@ -16,6 +16,9 @@ import numpy as np
 from board import Board
 from model import Model
 import common
+from train_space import Space
+
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 description = """
 Play go with a trained neural net!
@@ -31,7 +34,8 @@ args = vars(parser.parse_args())
 name_scope = args["name_scope"]
 
 #Hardcoded max board size
-pos_len = 19
+#pos_len = 19
+pos_len = 13
 
 # Model ----------------------------------------------------------------
 
@@ -159,7 +163,7 @@ def get_outputs(session, gs, rules):
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = model.loc_to_pos(loc,board)
       if board.pla == Board.WHITE:
         ownership_by_loc.append((loc,ownership_flat[pos]))
       else:
@@ -171,7 +175,7 @@ def get_outputs(session, gs, rules):
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = model.loc_to_pos(loc,board)
       if board.pla == Board.WHITE:
         scoring_by_loc.append((loc,scoring_flat[pos]))
       else:
@@ -183,7 +187,7 @@ def get_outputs(session, gs, rules):
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = model.loc_to_pos(loc,board)
       if board.pla == Board.WHITE:
         futurepos0_by_loc.append((loc,futurepos0_flat[pos]))
       else:
@@ -195,7 +199,7 @@ def get_outputs(session, gs, rules):
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = model.loc_to_pos(loc,board)
       if board.pla == Board.WHITE:
         futurepos1_by_loc.append((loc,futurepos1_flat[pos]))
       else:
@@ -207,7 +211,7 @@ def get_outputs(session, gs, rules):
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = model.loc_to_pos(loc,board)
       if board.pla == Board.WHITE:
         seki_by_loc.append((loc,seki_flat[pos]))
       else:
@@ -219,7 +223,7 @@ def get_outputs(session, gs, rules):
   for y in range(board.size):
     for x in range(board.size):
       loc = board.loc(x,y)
-      pos = model.loc_to_tensor_pos(loc,board)
+      pos = model.loc_to_pos(loc,board)
       seki_by_loc2.append((loc,seki_flat2[pos]))
 
   moves_and_probs = sorted(moves_and_probs0, key=lambda moveandprob: moveandprob[1], reverse=True)
@@ -277,7 +281,7 @@ def get_layer_values(session, gs, rules, layer, channel):
   layer = layer.reshape([model.pos_len * model.pos_len,-1])
   locs_and_values = []
   for y in range(board.size):
-    for x in range(board.size):
+    for x in range(board.size if not(Space.DUPLICATE) else 2*board.size):
       loc = board.loc(x,y)
       pos = model.loc_to_tensor_pos(loc,board)
       locs_and_values.append((loc,layer[pos,channel]))
@@ -294,7 +298,7 @@ def get_input_feature(gs, rules, feature_idx):
 
   locs_and_values = []
   for y in range(board.size):
-    for x in range(board.size):
+    for x in range(board.size if not(Space.DUPLICATE) else 2*board.size):
       loc = board.loc(x,y)
       pos = model.loc_to_tensor_pos(loc,board)
       locs_and_values.append((loc,bin_input_data[0,pos,feature_idx]))
@@ -488,14 +492,14 @@ def print_scorebelief(gs,outputs):
   ret += "TEXT "
   ret += "SBScale: " + str(sbscale) + "\n"
   ret += "ScoreBelief: \n"
-  for i in range(17,-1,-1):
+  for i in range(10,-1,-1): #17
     ret += "TEXT "
     ret += "%+6.1f" %(-(i*20+0.5))
     for j in range(20):
       idx = scoredistrmid-(i*20+j)-1
       ret += " %4.0f" % (scorebelief[idx] * 10000)
     ret += "\n"
-  for i in range(18):
+  for i in range(11): #18
     ret += "TEXT "
     ret += "%+6.1f" %((i*20+0.5))
     for j in range(20):
@@ -599,7 +603,8 @@ def run_gtp(session):
     'gfx/PassAlive/passalive',
   ]
 
-  board_size = 19
+  #board_size = 19
+  board_size = 13
   gs = GameState(board_size)
 
   rules = {
@@ -623,7 +628,7 @@ def run_gtp(session):
 
   def add_extra_board_size_visualizations(layer_name, layer, normalization_div):
     assert(layer.shape[1].value == board_size)
-    assert(layer.shape[2].value == board_size)
+    assert(layer.shape[2].value == (board_size if not(Space.DUPLICATE) else board_size*2))
     num_channels = layer.shape[3].value
     for i in range(num_channels):
       command_name = layer_name + "-" + str(i)
@@ -672,7 +677,7 @@ def run_gtp(session):
     add_input_feature_visualizations("input-" + str(i),i, normalization_div=1)
 
 
-  linear = tf.cumsum(tf.ones([19],dtype=tf.float32),axis=0,exclusive=True) / 18.0
+  linear = tf.cumsum(tf.ones([board_size],dtype=tf.float32),axis=0,exclusive=True) / 18.0  #19
   color_calibration = tf.stack(axis=0,values=[
     linear,
     linear*0.5,
@@ -689,12 +694,12 @@ def run_gtp(session):
     -linear*0.02,
     -linear*0.01,
     linear*2-1,
-    tf.zeros([19],dtype=tf.float32),
+    tf.zeros([board_size],dtype=tf.float32),
     linear,
     -linear,
-    tf.zeros([19],dtype=tf.float32)
+    tf.zeros([board_size],dtype=tf.float32)
   ])
-  add_extra_board_size_visualizations("colorcalibration", tf.reshape(color_calibration,[1,19,19,1]),normalization_div=None)
+  #add_extra_board_size_visualizations("colorcalibration", tf.reshape(color_calibration,[1,board_size,board_size,1]),normalization_div=None) #19,19
 
   while True:
     try:

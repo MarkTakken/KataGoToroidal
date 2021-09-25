@@ -92,7 +92,7 @@ class Board:
     elif Space.SETSPACE == Space.TOROIDAL:
       if newLoc <= self.size:
         newLoc += self.dy * self.size
-      elif newLoc > (self.dy)*(self.dy):
+      elif newLoc >= (self.dy)*(self.dy)+1:
         newLoc -= self.dy * self.size
       if newLoc % self.dy == 0:
         if self.loc_x(loc) == self.size - 1:
@@ -101,6 +101,20 @@ class Board:
           newLoc += self.size
         else:
           raise Exception("Invalid offset given")
+      return newLoc
+    elif Space.SETSPACE == Space.KLEIN:
+      if newLoc <= self.size:
+        newLoc += self.dy * self.size
+      elif newLoc >= (self.dy)*(self.dy)+1:
+        newLoc -= self.dy * self.size
+      if newLoc % self.dy == 0:
+        if self.loc_x(loc) == self.size - 1:
+          newLoc = (self.size+1)*(self.size+2)+1-newLoc
+        elif self.loc_x(loc) == 0:
+          newLoc = (self.size+1)*(self.size+2)-1-newLoc
+        else:
+          raise Exception("Invalid offset given")
+      return newLoc
     else:
       raise Exception("Unrecognized board space")
 

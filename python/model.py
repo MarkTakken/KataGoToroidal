@@ -55,16 +55,17 @@ class Model:
 
 
   def __init__(self,config,pos_len,placeholders,is_training=False):
+    self.nnXLen = pos_len if not(Space.DUPLICATE) else pos_len*2
     self.config = config
     assert(pos_len == 13) #For 13x13 training only!!
     self.pos_len = pos_len
     self.num_bin_input_features = Model.get_num_bin_input_features(config)
     self.num_global_input_features = Model.get_num_global_input_features(config)
 
-    self.bin_input_shape = [self.pos_len*self.pos_len,self.num_bin_input_features]
-    self.binp_input_shape = [self.num_bin_input_features,(self.pos_len*self.pos_len+7)//8]
+    self.bin_input_shape = [self.pos_len*self.nnXLen,self.num_bin_input_features]
+    self.binp_input_shape = [self.num_bin_input_features,(self.pos_len*self.nnXLen+7)//8]
     self.global_input_shape = [self.num_global_input_features]
-    self.post_input_shape = [self.pos_len,self.pos_len,self.num_bin_input_features]
+    self.post_input_shape = [self.pos_len,self.nnXLen,self.num_bin_input_features]
     self.policy_output_shape_nopass = [self.pos_len*self.pos_len,2]
     self.policy_output_shape = [self.pos_len*self.pos_len+1,2] #+1 for pass move
     self.policy_target_shape = [self.pos_len*self.pos_len+1] #+1 for pass move
@@ -131,10 +132,16 @@ class Model:
         name, str(shape), str([str(x.value) for x in tensor.shape])))
 
   def xy_to_tensor_pos(self,x,y):
-    return y * self.pos_len + x
-  def loc_to_tensor_pos(self,loc,board):
+    return y * self.nnXLen + x
+  def loc_to_pos(self,loc,board):
     assert(loc != Board.PASS_LOC)
     return board.loc_y(loc) * self.pos_len + board.loc_x(loc)
+  def loc_to_tensor_pos(self,loc,board):
+    assert(loc != Board.PASS_LOC)
+    return board.loc_y(loc) * self.nnXLen + board.loc_x(loc)
+  def loc_to_tensor_posdup(self,loc,board):
+    assert(loc != Board.PASS_LOC)
+    return (self.pos_len-1-board.loc_y(loc)) * self.nnXLen + board.loc_x(loc)+self.pos_len
 
   def tensor_pos_to_loc(self,pos,board):
     if pos == self.pass_pos:
@@ -151,9 +158,10 @@ class Model:
   def sym_tensor_pos(self,pos,symmetry):
     if pos == self.pass_pos:
       return pos
-    pos_len = self.pos_len
-    x = pos % pos_len
-    y = pos // pos_len
+    xlen = self.nnXLen
+    ylen = self.pos_len
+    x = pos % xlen
+    y = pos // xlen
     if symmetry >= 4:
       symmetry -= 4
       tmp = x
@@ -161,11 +169,11 @@ class Model:
       y = tmp
     if symmetry >= 2:
       symmetry -= 2
-      x = pos_len-x-1
+      x = xlen-x-1
     if symmetry >= 1:
       symmetry -= 1
-      y = pos_len-y-1
-    return y * pos_len + x
+      y = ylen-y-1
+    return y * xlen + x
 
   #Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
   def iterLadders(self, board, f):
@@ -216,27 +224,36 @@ class Model:
     for y in range(bsize):
       for x in range(bsize):
         pos = self.xy_to_tensor_pos(x,y)
+        pos_dup = self.xy_to_tensor_pos(x+self.pos_len,self.pos_len-1-y)
         bin_input_data[idx,pos,0] = 1.0
+        if Space.DUPLICATE: bin_input_data[idx,pos_dup,0] = 1.0
         loc = board.loc(x,y)
         stone = board.board[loc]
         if stone == pla:
           bin_input_data[idx,pos,1] = 1.0
+          if Space.DUPLICATE: bin_input_data[idx,pos_dup,1] = 1.0
         elif stone == opp:
           bin_input_data[idx,pos,2] = 1.0
+          if Space.DUPLICATE: bin_input_data[idx,pos_dup,2] = 1.0
 
         if stone == pla or stone == opp:
           libs = board.num_liberties(loc)
           if libs == 1:
             bin_input_data[idx,pos,3] = 1.0
+            if Space.DUPLICATE: bin_input_data[idx,pos_dup,3] = 1.0
           elif libs == 2:
             bin_input_data[idx,pos,4] = 1.0
+            if Space.DUPLICATE: bin_input_data[idx,pos_dup,4] = 1.0
           elif libs == 3:
             bin_input_data[idx,pos,5] = 1.0
+            if Space.DUPLICATE: bin_input_data[idx,pos_dup,5] = 1.0
 
     #Python code does NOT handle superko
     if board.simple_ko_point is not None:
       pos = self.loc_to_tensor_pos(board.simple_ko_point,board)
+      pos_dup = self.loc_to_tensor_posdup(board.simple_ko_point,board)
       bin_input_data[idx,pos,6] = 1.0
+      if Space.DUPLICATE: bin_input_data[idx,pos_dup,6] = 1.0
     #Python code does NOT handle ko-prohibited encore spots or anything relating to the encore
     #so features 7 and 8 leave that blank
 
@@ -244,7 +261,10 @@ class Model:
       prev1_loc = moves[move_idx-1][1]
       if prev1_loc is not None and prev1_loc != Board.PASS_LOC:
         pos = self.loc_to_tensor_pos(prev1_loc,board)
+        pos_dup = self.loc_to_tensor_posdup(prev1_loc,board)
         bin_input_data[idx,pos,9] = 1.0
+        if Space.DUPLICATE: bin_input_data[idx,pos_dup,9] = 1.0
+
       elif prev1_loc == Board.PASS_LOC:
         global_input_data[idx,0] = 1.0
 
@@ -252,7 +272,9 @@ class Model:
         prev2_loc = moves[move_idx-2][1]
         if prev2_loc is not None and prev2_loc != Board.PASS_LOC:
           pos = self.loc_to_tensor_pos(prev2_loc,board)
+          pos_dup = self.loc_to_tensor_posdup(prev2_loc,board)
           bin_input_data[idx,pos,10] = 1.0
+          if Space.DUPLICATE: bin_input_data[idx,pos_dup,10] = 1.0
         elif prev2_loc == Board.PASS_LOC:
           global_input_data[idx,1] = 1.0
 
@@ -260,7 +282,9 @@ class Model:
           prev3_loc = moves[move_idx-3][1]
           if prev3_loc is not None and prev3_loc != Board.PASS_LOC:
             pos = self.loc_to_tensor_pos(prev3_loc,board)
+            pos_dup = self.loc_to_tensor_posdup(prev3_loc,board)
             bin_input_data[idx,pos,11] = 1.0
+            if Space.DUPLICATE: bin_input_data[idx,pos_dup,11] = 1.0
           elif prev3_loc == Board.PASS_LOC:
             global_input_data[idx,2] = 1.0
 
@@ -268,7 +292,9 @@ class Model:
             prev4_loc = moves[move_idx-4][1]
             if prev4_loc is not None and prev4_loc != Board.PASS_LOC:
               pos = self.loc_to_tensor_pos(prev4_loc,board)
+              pos_dup = self.loc_to_tensor_posdup(prev4_loc,board)
               bin_input_data[idx,pos,12] = 1.0
+              if Space.DUPLICATE: bin_input_data[idx,pos_dup,12] = 1.0
             elif prev4_loc == Board.PASS_LOC:
               global_input_data[idx,3] = 1.0
 
@@ -276,17 +302,23 @@ class Model:
               prev5_loc = moves[move_idx-5][1]
               if prev5_loc is not None and prev5_loc != Board.PASS_LOC:
                 pos = self.loc_to_tensor_pos(prev5_loc,board)
+                pos_dup = self.loc_to_tensor_posdup(prev5_loc,board)
                 bin_input_data[idx,pos,13] = 1.0
+                if Space.DUPLICATE: bin_input_data[idx,pos_dup,13] = 1.0
               elif prev5_loc == Board.PASS_LOC:
                 global_input_data[idx,4] = 1.0
 
     def addLadderFeature(loc,pos,workingMoves):
       assert(board.board[loc] == Board.BLACK or board.board[loc] == Board.WHITE)
       bin_input_data[idx,pos,14] = 1.0
+      pos_dup = self.loc_to_tensor_posdup(loc,board)
+      if Space.DUPLICATE: bin_input_data[idx,pos_dup,14] = 1.0
       if board.board[loc] == opp and board.num_liberties(loc) > 1:
         for workingMove in workingMoves:
           workingPos = self.loc_to_tensor_pos(workingMove,board)
+          workingPos_dup = self.loc_to_tensor_posdup(workingMove,board)
           bin_input_data[idx,workingPos,17] = 1.0
+          if Space.DUPLICATE: bin_input_data[idx,workingPos_dup,17] = 1.0
 
     self.iterLadders(board, addLadderFeature)
 
@@ -297,6 +329,8 @@ class Model:
     def addPrevLadderFeature(loc,pos,workingMoves):
       assert(prevBoard.board[loc] == Board.BLACK or prevBoard.board[loc] == Board.WHITE)
       bin_input_data[idx,pos,15] = 1.0
+      pos_dup = self.loc_to_tensor_posdup(loc,board)
+      if Space.DUPLICATE: bin_input_data[idx,pos_dup,15] = 1.0
     self.iterLadders(prevBoard, addPrevLadderFeature)
 
     if move_idx > 1:
@@ -306,6 +340,8 @@ class Model:
     def addPrevPrevLadderFeature(loc,pos,workingMoves):
       assert(prevPrevBoard.board[loc] == Board.BLACK or prevPrevBoard.board[loc] == Board.WHITE)
       bin_input_data[idx,pos,16] = 1.0
+      pos_dup = self.loc_to_tensor_posdup(loc,board)
+      if Space.DUPLICATE: bin_input_data[idx,pos_dup,16] = 1.0
     self.iterLadders(prevPrevBoard, addPrevPrevLadderFeature)
 
     #Features 18,19 - area
@@ -366,11 +402,14 @@ class Model:
       for x in range(bsize):
         loc = board.loc(x,y)
         pos = self.xy_to_tensor_pos(x,y)
+        pos_dup = self.xy_to_tensor_pos(x+self.pos_len,self.pos_len-1-y)
 
         if area[loc] == pla:
           bin_input_data[idx,pos,18] = 1.0
+          if Space.DUPLICATE: bin_input_data[idx,pos_dup,18] = 1.0
         elif area[loc] == opp:
           bin_input_data[idx,pos,19] = 1.0
+          if Space.DUPLICATE: bin_input_data[idx,pos_dup,19] = 1.0
 
     #Features 20,21 - second encore phase starting stones, we just set them to the current stones in pythong
     #since we don't really have a jp rules impl
@@ -378,12 +417,15 @@ class Model:
       for y in range(bsize):
         for x in range(bsize):
           pos = self.xy_to_tensor_pos(x,y)
+          pos_dup = self.xy_to_tensor_pos(x+self.pos_len,self.pos_len-1-y)
           loc = board.loc(x,y)
           stone = board.board[loc]
           if stone == pla:
             bin_input_data[idx,pos,20] = 1.0
+            if Space.DUPLICATE: bin_input_data[idx,pos_dup,20] = 1.0
           elif stone == opp:
             bin_input_data[idx,pos,21] = 1.0
+            if Space.DUPLICATE: bin_input_data[idx,pos_dup,21] = 1.0
 
 
     #Not quite right, japanese rules aren't really implemented in the python
@@ -666,10 +708,11 @@ class Model:
         lambda: tensor
       )
 
-    tensor = tf.cond(
-      transp,
-      lambda: tf.transpose(tensor, [0,2,1,3]),
-      lambda: tensor)
+    if not(Space.DUPLICATE):
+      tensor = tf.cond(
+        transp,
+        lambda: tf.transpose(tensor, [0,2,1,3]),
+        lambda: tensor)
 
     if inverse:
       tensor = tf.cond(
@@ -853,7 +896,9 @@ class Model:
     layer_2 = layer_raw_mean * (tf.square(div_sqrt - center_bsize) / 100.0 - 0.1)
     layer_pooled = tf.concat([layer_0,layer_1,layer_2],axis=1)
     return layer_pooled
-
+  
+  def final_average(self,tensor):
+    return (tf.gather(tensor,list(range(self.pos_len)),axis=2)+tf.gather(tf.gather(tensor,list(range(self.pos_len,2*self.pos_len)),axis=2),list(range(self.pos_len-1,-1,-1)),axis=1))/2
 
   #Begin Neural net------------------------------------------------------------------------------------
   #Indexing:
@@ -979,9 +1024,9 @@ class Model:
     assert(hist_matrix_builder.shape[2].value == self.num_bin_input_features)
 
     hist_filter_matrix = hist_matrix_base + tf.tensordot(include_history, hist_matrix_builder, axes=[[1],[0]]) #[batch,move] * [move,inc,outc] = [batch,inc,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.pos_len,self.num_bin_input_features]) #[batch,xy,inc]
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len*self.nnXLen,self.num_bin_input_features]) #[batch,xy,inc]
     cur_layer = tf.matmul(cur_layer,hist_filter_matrix) #[batch,xy,inc] * [batch,inc,outc] = [batch,xy,outc]
-    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.pos_len,self.num_bin_input_features])
+    cur_layer = tf.reshape(cur_layer,[-1,self.pos_len,self.nnXLen,self.num_bin_input_features])
 
     assert(include_history.shape[1].value == 5)
     transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,self.num_global_input_features - include_history.shape[1].value)], constant_values=1.0)
@@ -1109,6 +1154,7 @@ class Model:
 
     #Output symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     policy_output = self.apply_symmetry(p2_layer,symmetries,xy_shift,inverse=True)
+    if Space.DUPLICATE: policy_output = self.final_average(policy_output)
     policy_output = tf.reshape(policy_output, [-1] + self.policy_output_shape_nopass)
 
     #Add pass move based on the global g values
@@ -1231,21 +1277,25 @@ class Model:
     ownership_output = self.conv_only_block("vownership",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2) * mask
     self.vownership_conv = ("vownership",1,v1_num_channels,1)
     ownership_output = self.apply_symmetry(ownership_output,symmetries,xy_shift,inverse=True)
+    if Space.DUPLICATE: ownership_output = self.final_average(ownership_output)
     ownership_output = tf.reshape(ownership_output, [-1] + self.ownership_target_shape, name = "ownership_output")
 
     scoring_output = self.conv_only_block("vscoring",v1_layer,diam=1,in_channels=v1_num_channels,out_channels=1, scale_initial_weights=0.2) * mask
     self.vscoring_conv = ("vscoring",1,v1_num_channels,1)
     scoring_output = self.apply_symmetry(scoring_output,symmetries,xy_shift,inverse=True)
+    if Space.DUPLICATE: scoring_output = self.final_average(scoring_output)
     scoring_output = tf.reshape(scoring_output, [-1] + self.scoring_target_shape, name = "scoring_output")
 
     futurepos_output = self.conv_only_block("futurepos",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=2, scale_initial_weights=0.2) * mask
     self.futurepos_conv = ("futurepos",1,trunk_num_channels,2)
     futurepos_output = self.apply_symmetry(futurepos_output,symmetries,xy_shift,inverse=True)
+    if Space.DUPLICATE: futurepos_output = self.final_average(futurepos_output)
     futurepos_output = tf.reshape(futurepos_output, [-1] + self.futurepos_target_shape, name = "futurepos_output")
 
     seki_output = self.conv_only_block("seki",v0_layer,diam=1,in_channels=trunk_num_channels,out_channels=4, scale_initial_weights=0.2) * mask
     self.seki_conv = ("seki",1,trunk_num_channels,4)
     seki_output = self.apply_symmetry(seki_output,symmetries,xy_shift,inverse=True)
+    if Space.DUPLICATE: seki_output = self.final_average(seki_output)
     seki_output = tf.reshape(seki_output, [-1] + self.seki_output_shape, name = "seki_output")
 
     # self.add_lr_factor("v2/w:0",0.25)
