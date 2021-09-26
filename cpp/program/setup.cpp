@@ -87,6 +87,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     int nnXLen = std::max(defaultNNXLen,7);
     if (Space::DUPLICATE) nnXLen *= 2;
     int nnYLen = std::max(defaultNNYLen,7);
+    assert(nnYLen == 13); //Temporary assert
     if(setupFor != SETUP_FOR_DISTRIBUTED) {
       if(cfg.contains("maxBoardXSizeForNNBuffer" + idxStr))
         nnXLen = cfg.getInt("maxBoardXSizeForNNBuffer" + idxStr, 7, NNPos::MAX_BOARD_LEN);
