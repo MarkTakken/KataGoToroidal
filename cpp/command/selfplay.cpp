@@ -156,9 +156,17 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
 
     Rand rand;
     string expectedSha256 = "";
+    /*
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
       modelName,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
       NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,
+      Setup::SETUP_FOR_OTHER
+    );
+    */
+    //Fit neural network to data board length rather than maximum board length
+    NNEvaluator* nnEval = Setup::initializeNNEvaluator(
+      modelName,modelFile,expectedSha256,cfg,logger,rand,maxConcurrentEvals,expectedConcurrentEvals,
+      dataBoardLen,dataBoardLen,defaultMaxBatchSize,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
@@ -208,9 +216,9 @@ int MainCmds::selfplay(int argc, const char* const* argv) {
     //Note that this inputsVersion passed here is NOT necessarily the same as the one used in the neural net self play, it
     //simply controls the input feature version for the written data
     TrainingDataWriter* tdataWriter = new TrainingDataWriter(
-      tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
+      tdataOutputDir, inputsVersion, maxRowsPerTrainFile, firstFileRandMinProp, !Space::DUPLICATE ? dataBoardLen : dataBoardLen*2, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
     TrainingDataWriter* vdataWriter = new TrainingDataWriter(
-      vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, dataBoardLen, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
+      vdataOutputDir, inputsVersion, maxRowsPerValFile, firstFileRandMinProp, !Space::DUPLICATE ? dataBoardLen : dataBoardLen*2, dataBoardLen, Global::uint64ToHexString(rand.nextUInt64()));
     ofstream* sgfOut = sgfOutputDir.length() > 0 ? (new ofstream(sgfOutputDir + "/" + Global::uint64ToHexString(rand.nextUInt64()) + ".sgfs")) : NULL;
 
     logger.write("Model loading loop thread loaded new neural net " + nnEval->getModelName());
