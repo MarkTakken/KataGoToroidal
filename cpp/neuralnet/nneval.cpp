@@ -441,7 +441,7 @@ void NNEvaluator::serve(
         resultBuf->result->nnYLen = nnYLen;
         if(resultBuf->includeOwnerMap) {
           float* whiteOwnerMap = !Space::DUPLICATE ? new float[nnXLen*nnYLen] : new float[boardXSize*nnYLen];
-          for(int i = 0; i<nnXLen*nnYLen; i++)
+          for(int i = 0; i<(!Space::DUPLICATE ? (nnXLen*nnYLen) : (nnXLen/2*nnYLen)); i++)
             whiteOwnerMap[i] = 0.0;
           for(int y = 0; y<boardYSize; y++) {
             for(int x = 0; x<boardXSize; x++) {

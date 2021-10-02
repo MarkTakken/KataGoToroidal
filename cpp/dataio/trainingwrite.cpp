@@ -213,10 +213,10 @@ TrainingWriteBuffers::TrainingWriteBuffers(int iVersion, int maxRws, int numBCha
    binaryInputNCHWUnpacked(NULL),
    binaryInputNCHWPacked({maxRws, numBChannels, packedBoardArea}),
    globalInputNC({maxRws, numFChannels}),
-   policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(xLen,yLen)}),
+   policyTargetsNCMove({maxRws, POLICY_TARGET_NUM_CHANNELS, NNPos::getPolicySize(!Space::DUPLICATE ? xLen : xLen/2,yLen)}),
    globalTargetsNC({maxRws, GLOBAL_TARGET_NUM_CHANNELS}),
-   scoreDistrN({maxRws, xLen*yLen*2+NNPos::EXTRA_SCORE_DISTR_RADIUS*2}),
-   valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, yLen, xLen})
+   scoreDistrN({maxRws, (!Space::DUPLICATE ? xLen : xLen/2)*yLen*2+NNPos::EXTRA_SCORE_DISTR_RADIUS*2}),
+   valueTargetsNCHW({maxRws, VALUE_SPATIAL_TARGET_NUM_CHANNELS, yLen, !Space::DUPLICATE ? xLen : xLen/2})
 {
   binaryInputNCHWUnpacked = new float[numBChannels * xLen * yLen];
 }
@@ -269,7 +269,7 @@ static void fillPolicyTarget(const vector<PolicyTargetMove>& policyTargetMoves, 
   size_t size = policyTargetMoves.size();
   for(size_t i = 0; i<size; i++) {
     const PolicyTargetMove& move = policyTargetMoves[i];
-    int pos = NNPos::locToPos(move.loc, boardXSize, dataXLen, dataYLen);
+    int pos = NNPos::locToPos(move.loc, boardXSize, !Space::DUPLICATE ? dataXLen : dataXLen/2, dataYLen);
     assert(pos >= 0 && pos < policySize);
     target[pos] = move.policyTarget;
   }
@@ -355,6 +355,7 @@ void TrainingWriteBuffers::addRow(
   int posArea = dataXLen*dataYLen;
   assert(data.hasFullData);
   assert(curRows < maxRows);
+  if (Space::DUPLICATE) assert(dataXLen = 2*dataYLen);
 
   {
     MiscNNInputParams nnInputParams;
@@ -408,11 +409,11 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[25] = targetWeight;
 
   //Fill policy
-  int policySize = NNPos::getPolicySize(dataXLen,dataYLen);
+  int policySize = NNPos::getPolicySize(!Space::DUPLICATE ? dataXLen : dataXLen/2,dataYLen);
   int16_t* rowPolicy = policyTargetsNCMove.data + curRows * POLICY_TARGET_NUM_CHANNELS * policySize;
 
   if(policyTarget0 != NULL) {
-    fillPolicyTarget(*policyTarget0, policySize, dataXLen, dataYLen, board.x_size, rowPolicy + 0 * policySize);
+    fillPolicyTarget(*policyTarget0, policySize, !Space::DUPLICATE ? dataXLen : dataXLen/2, dataYLen, board.x_size, rowPolicy + 0 * policySize);
     rowGlobal[26] = 1.0f;
   }
   else {
@@ -421,7 +422,7 @@ void TrainingWriteBuffers::addRow(
   }
 
   if(policyTarget1 != NULL) {
-    fillPolicyTarget(*policyTarget1, policySize, dataXLen, dataYLen, board.x_size, rowPolicy + 1 * policySize);
+    fillPolicyTarget(*policyTarget1, policySize, !Space::DUPLICATE ? dataXLen : dataXLen/2, dataYLen, board.x_size, rowPolicy + 1 * policySize);
     rowGlobal[28] = 1.0f;
   }
   else {
@@ -573,7 +574,7 @@ void TrainingWriteBuffers::addRow(
     Player opp = getOpp(nextPlayer);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
+        int pos = NNPos::xyToPos(x,y,!Space::DUPLICATE ? dataXLen : dataXLen/2);
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(finalOwnership[loc] == nextPlayer) rowOwnership[pos] = 1;
         else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1;
@@ -628,7 +629,7 @@ void TrainingWriteBuffers::addRow(
     Player opp = getOpp(nextPlayer);
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
+        int pos = NNPos::xyToPos(x,y,!Space::DUPLICATE ? dataXLen : dataXLen/2);
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(board2.colors[loc] == pla) rowOwnership[pos+posArea*2] = 1;
         else if(board2.colors[loc] == opp) rowOwnership[pos+posArea*2] = -1;
@@ -656,7 +657,7 @@ void TrainingWriteBuffers::addRow(
 
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
-        int pos = NNPos::xyToPos(x,y,dataXLen);
+        int pos = NNPos::xyToPos(x,y,!Space::DUPLICATE ? dataXLen : dataXLen/2);
         Loc loc = Location::getLoc(x,y,board.x_size);
         float scoring = (nextPlayer == P_WHITE ? finalWhiteScoring[loc] : -finalWhiteScoring[loc]);
         assert(scoring <= 1.0f && scoring >= -1.0f);

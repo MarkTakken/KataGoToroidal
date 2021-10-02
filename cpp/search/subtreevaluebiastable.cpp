@@ -94,7 +94,7 @@ std::shared_ptr<SubtreeValueBiasEntry> SubtreeValueBiasTable::get(Player pla, Lo
     if(y < 2) { dyMin = -y; } else if(y >= board.y_size-2) { dyMax = board.y_size-1-y; }
     for(int dy = dyMin; dy <= dyMax; dy++) {
       for(int dx = dxMin; dx <= dxMax; dx++) {
-        Loc loc = prevMoveLoc + dx * dxi + dy * dyi;
+        Loc loc = Location::getNewLoc(prevMoveLoc,dx * dxi + dy * dyi,board.x_size,board.y_size);
         hash ^= ZOBRIST_LOCAL_PATTERN[board.colors[loc]][dy+2][dx+2];
         if((board.colors[loc] == P_BLACK || board.colors[loc] == P_WHITE) && board.getNumLiberties(loc) == 1)
           hash ^= ZOBRIST_ATARI[dy+2][dx+2];

@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from model import Model
+from train_space import Space
 
 # Construct a dictionary that tensorflow uses to know how to parse a tfrecord
 def make_raw_input_features(model_config,pos_len,batch_size):
@@ -23,7 +24,7 @@ def make_raw_input_feature_placeholders(model_config,pos_len,batch_size):
   num_global_input_features = Model.get_num_global_input_features(model_config)
 
   return {
-    "binchwp": tf.compat.v1.placeholder(tf.uint8,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
+    "binchwp": tf.compat.v1.placeholder(tf.uint8,[batch_size,num_bin_input_features,((2 if Space.DUPLICATE else 1)*pos_len*pos_len+7)//8]),
     "ginc": tf.compat.v1.placeholder(tf.float32,[batch_size,num_global_input_features]),
     "ptncm": tf.compat.v1.placeholder(tf.float32,[batch_size,Model.NUM_POLICY_TARGETS,pos_len*pos_len+1]),
     "gtnc": tf.compat.v1.placeholder(tf.float32,[batch_size,Model.NUM_GLOBAL_TARGETS]),
@@ -49,7 +50,7 @@ def make_tf_record_parser(model_config,pos_len,batch_size,multi_num_gpus=None):
     vtnchw = example["vtnchw"]
     if multi_num_gpus is None:
       return {
-        "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
+        "binchwp": tf.reshape(binchwp,[batch_size,num_bin_input_features,((2 if Space.DUPLICATE else 1)*pos_len*pos_len+7)//8]),
         "ginc": tf.reshape(ginc,[batch_size,num_global_input_features]),
         "ptncm": tf.reshape(ptncm,[batch_size,Model.NUM_POLICY_TARGETS,pos_len*pos_len+1]),
         "gtnc": tf.reshape(gtnc,[batch_size,Model.NUM_GLOBAL_TARGETS]),
@@ -59,7 +60,7 @@ def make_tf_record_parser(model_config,pos_len,batch_size,multi_num_gpus=None):
     else:
       instance_batch_size = batch_size // multi_num_gpus
       return {
-        "binchwp": tf.reshape(binchwp,[multi_num_gpus,instance_batch_size,num_bin_input_features,(pos_len*pos_len+7)//8]),
+        "binchwp": tf.reshape(binchwp,[multi_num_gpus,instance_batch_size,num_bin_input_features,((2 if Space.DUPLICATE else 1)*pos_len*pos_len+7)//8]),
         "ginc": tf.reshape(ginc,[multi_num_gpus,instance_batch_size,num_global_input_features]),
         "ptncm": tf.reshape(ptncm,[multi_num_gpus,instance_batch_size,Model.NUM_POLICY_TARGETS,pos_len*pos_len+1]),
         "gtnc": tf.reshape(gtnc,[multi_num_gpus,instance_batch_size,Model.NUM_GLOBAL_TARGETS]),

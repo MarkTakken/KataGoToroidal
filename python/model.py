@@ -954,7 +954,7 @@ class Model:
 
     input_num_channels = self.post_input_shape[2]
 
-    mask_before_symmetry = cur_layer[:,:,:,0:1]
+    mask_before_symmetry = cur_layer[:,:,:self.pos_len,0:1]
 
     #Input symmetries - we apply symmetries during training by transforming the input and reverse-transforming the output
     cur_layer = self.apply_symmetry(cur_layer,symmetries,xy_shift,inverse=False)
@@ -1763,8 +1763,8 @@ class ModelUtils:
     binchwp = features["binchwp"]
     #Unpack binary data
     bitmasks = tf.reshape(tf.constant([128,64,32,16,8,4,2,1],dtype=tf.uint8),[1,1,1,8])
-    binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,num_bin_input_features,((pos_len*pos_len+7)//8)*8])
-    binchw = binchw[:,:,:pos_len*pos_len]
+    binchw = tf.reshape(tf.bitwise.bitwise_and(tf.expand_dims(binchwp,axis=3),bitmasks),[-1,num_bin_input_features,(((2 if Space.DUPLICATE else 1)*pos_len*pos_len+7)//8)*8])
+    binchw = binchw[:,:,:(pos_len*pos_len if not(Space.DUPLICATE) else 2*pos_len*pos_len)]
     binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
     binhwc = tf.math.minimum(binhwc,tf.constant(1.0))
 

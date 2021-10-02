@@ -4,6 +4,7 @@
 //-------------------------------------------------------------------------------------
 
 #include "../search/search.h"
+#include "../game/board.h"
 
 #include <inttypes.h>
 
@@ -198,7 +199,7 @@ bool Search::getPlaySelectionValuesAlreadyLocked(
     bool obeyAllowedRootMove = true;
     while(true) {
       for(int movePos = 0; movePos<policySize; movePos++) {
-        Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
+        Loc moveLoc = NNPos::posToLoc(movePos,rootBoard.x_size,rootBoard.y_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
         float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
         double policyProb = policyProbs[movePos];
         if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || policyProb < 0 || (obeyAllowedRootMove && !isAllowedRootMove(moveLoc)))
@@ -516,13 +517,13 @@ bool Search::shouldSuppressPassAlreadyLocked(const SearchNode* n) const {
     Loc moveLoc = child->prevMoveLoc;
     if(moveLoc == Board::PASS_LOC)
       continue;
-    int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
+    int pos = NNPos::locToPos(moveLoc,rootBoard.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
     double plaOwnership = rootPla == P_WHITE ? whiteOwnerMap[pos] : -whiteOwnerMap[pos];
     bool oppOwned = plaOwnership < -extreme;
     bool adjToPlaOwned = false;
     for(int j = 0; j<4; j++) {
-      Loc adj = moveLoc + rootBoard.adj_offsets[j];
-      int adjPos = NNPos::locToPos(adj,rootBoard.x_size,nnXLen,nnYLen);
+      Loc adj = Location::getNewLoc(moveLoc,rootBoard.adj_offsets[j],rootBoard.x_size,rootBoard.y_size);
+      int adjPos = NNPos::locToPos(adj,rootBoard.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
       double adjPlaOwnership = rootPla == P_WHITE ? whiteOwnerMap[adjPos] : -whiteOwnerMap[adjPos];
       if(adjPlaOwnership > extreme) {
         adjToPlaOwned = true;
@@ -673,7 +674,7 @@ void Search::printRootOwnershipMap(ostream& out, Player perspective) const {
 
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
+      int pos = NNPos::xyToPos(x,y,!Space::DUPLICATE ? nnOutput.nnXLen : nnOutput.nnXLen/2);
       out << Global::strprintf("%6.1f ", perspectiveFactor * nnOutput.whiteOwnerMap[pos]*100);
     }
     out << endl;
@@ -694,7 +695,7 @@ void Search::printRootPolicyMap(ostream& out) const {
   float* policyProbs = nnOutput.getPolicyProbsMaybeNoised();
   for(int y = 0; y<rootBoard.y_size; y++) {
     for(int x = 0; x<rootBoard.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnOutput.nnXLen);
+      int pos = NNPos::xyToPos(x,y,!Space::DUPLICATE ? nnOutput.nnXLen : nnOutput.nnXLen/2);
       out << Global::strprintf("%6.1f ", policyProbs[pos]*100);
     }
     out << endl;
@@ -1044,7 +1045,7 @@ void Search::getAnalysisData(
       if(bestPos < 0 || bestPolicy < 0.0)
         break;
 
-      Loc bestMove = NNPos::posToLoc(bestPos,rootBoard.x_size,rootBoard.y_size,nnXLen,nnYLen);
+      Loc bestMove = NNPos::posToLoc(bestPos,rootBoard.x_size,rootBoard.y_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
       AnalysisData data = getAnalysisDataOfSingleChild(
         NULL, scratchLocs, scratchValues, bestMove, bestPolicy, fpuValue, parentUtility, parentWinLossValue,
         parentScoreMean, parentScoreStdev, parentLead, maxPVDepth
@@ -1258,7 +1259,7 @@ vector<double> Search::getAverageTreeOwnership(int64_t minVisits, const SearchNo
     node = rootNode;
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
-  vector<double> vec(nnXLen*nnYLen,0.0);
+  vector<double> vec(!Space::DUPLICATE ? nnXLen*nnYLen : nnXLen/2*nnYLen,0.0);
   getAverageTreeOwnershipHelper(vec,minVisits,1.0,node);
   return vec;
 }
@@ -1316,7 +1317,7 @@ double Search::getAverageTreeOwnershipHelper(vector<double>& accum, int64_t minV
   double selfWeight = desiredWeight - actualWeightFromChildren;
   float* ownerMap = nnOutput->whiteOwnerMap;
   assert(ownerMap != NULL);
-  for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+  for(int pos = 0; pos<(!Space::DUPLICATE ? nnXLen*nnYLen : nnXLen*nnYLen/2); pos++)
     accum[pos] += selfWeight * ownerMap[pos];
 
   return desiredWeight;
@@ -1327,7 +1328,7 @@ json Search::getJsonOwnershipMap(const Player pla, const Player perspective, con
   json ownerships = json::array();
   for(int y = 0; y < board.y_size; y++) {
     for(int x = 0; x < board.x_size; x++) {
-      int pos = NNPos::xyToPos(x, y, nnXLen);
+      int pos = NNPos::xyToPos(x, y, !Space::DUPLICATE ? nnXLen : nnXLen/2);
       double o;
       if(perspective == P_BLACK || (perspective != P_BLACK && perspective != P_WHITE && pla == P_BLACK))
         o = -ownership[pos];
@@ -1448,12 +1449,12 @@ bool Search::getAnalysisJson(
     json policy = json::array();
     for(int y = 0; y < board.y_size; y++) {
       for(int x = 0; x < board.x_size; x++) {
-        int pos = NNPos::xyToPos(x, y, nnXLen);
+        int pos = NNPos::xyToPos(x, y, !Space::DUPLICATE ? nnXLen : nnXLen/2);
         policy.push_back(policyProbs[pos]);
       }
     }
 
-    int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, nnXLen, nnYLen);
+    int passPos = NNPos::locToPos(Board::PASS_LOC, board.x_size, !Space::DUPLICATE ? nnXLen : nnXLen/2, nnYLen);
     policy.push_back(policyProbs[passPos]);
     ret["policy"] = policy;
   }

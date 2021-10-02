@@ -927,7 +927,7 @@ static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const
   nnRawStats.whiteScoreMean = nnOutput.whiteScoreMean;
   {
     double entropy = 0.0;
-    int policySize = NNPos::getPolicySize(nnOutput.nnXLen,nnOutput.nnYLen);
+    int policySize = NNPos::getPolicySize(!Space::DUPLICATE ? nnOutput.nnXLen : nnOutput.nnXLen/2,nnOutput.nnYLen);
     for(int pos = 0; pos<policySize; pos++) {
       double prob = nnOutput.policyProbs[pos];
       if(prob >= 1e-30)
@@ -1064,9 +1064,9 @@ static Loc getGameInitializationMove(
   assert(nnYLen >= board.y_size);
   assert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
   assert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
-  int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  int policySize = NNPos::getPolicySize(!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
   for(int movePos = 0; movePos<policySize; movePos++) {
-    Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
+    Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
     double policyProb = nnOutput->policyProbs[movePos];
     if(!hist.isLegal(board,moveLoc,pla) || policyProb <= 0)
       continue;

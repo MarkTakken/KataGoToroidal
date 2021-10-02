@@ -51,7 +51,7 @@ Loc PlayUtils::chooseRandomPolicyMove(
   double relProbs[NNPos::MAX_NN_POLICY_SIZE];
   int locs[NNPos::MAX_NN_POLICY_SIZE];
   for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
-    Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,nnXLen,nnYLen);
+    Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
     if((loc == Board::PASS_LOC && !allowPass) || loc == banMove)
       continue;
     if(policyProbs[pos] > 0.0 && hist.isLegal(board,loc,pla)) {
@@ -598,7 +598,7 @@ vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
         continue;
 
       if(board.colors[loc] == P_WHITE || board.colors[loc] == P_BLACK) {
-        int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
+        int pos = NNPos::locToPos(loc,board.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
         double minOwnership = ownerships[pos];
         double maxOwnership = ownerships[pos];
         double ownershipSum = 0.0;
@@ -607,7 +607,7 @@ vector<bool> PlayUtils::computeAnticipatedStatusesWithOwnership(
         //Run through the whole chain
         Loc cur = loc;
         do {
-          pos = NNPos::locToPos(cur,board.x_size,nnXLen,nnYLen);
+          pos = NNPos::locToPos(cur,board.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
           minOwnership = std::min(ownerships[pos],minOwnership);
           maxOwnership = std::max(ownerships[pos],maxOwnership);
           ownershipSum += ownerships[pos];
@@ -971,7 +971,7 @@ Loc PlayUtils::maybeFriendlyPass(
   for(int y = 0; y<board.y_size && !foundUnsurroundedSpot; y++) {
     for(int x = 0; x<board.x_size && !foundUnsurroundedSpot; x++) {
       Loc loc = Location::getLoc(x,y,board.x_size);
-      int pos = NNPos::locToPos(loc,board.x_size,nnXLen,nnYLen);
+      int pos = NNPos::locToPos(loc,board.x_size,!Space::DUPLICATE ? nnXLen : nnXLen/2,nnYLen);
       if(ownerships[pos] > highOwnershipThreshold && area[loc] != C_WHITE)
         foundUnsurroundedSpot = true;
       if(ownerships[pos] < -highOwnershipThreshold && area[loc] != C_BLACK)
