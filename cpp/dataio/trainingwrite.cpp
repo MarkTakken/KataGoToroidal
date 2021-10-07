@@ -353,6 +353,7 @@ void TrainingWriteBuffers::addRow(
     throw StringError("Training write buffers: Does not support input version: " + Global::intToString(inputsVersion));
 
   int posArea = dataXLen*dataYLen;
+  int posAreaFinal = !Space::DUPLICATE ? posArea : posArea/2;
   assert(data.hasFullData);
   assert(curRows < maxRows);
   if (Space::DUPLICATE) assert(dataXLen = 2*dataYLen);
@@ -540,15 +541,15 @@ void TrainingWriteBuffers::addRow(
 
   assert(64 == GLOBAL_TARGET_NUM_CHANNELS);
 
-  int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
-  int scoreDistrMid = posArea + NNPos::EXTRA_SCORE_DISTR_RADIUS;
+  int scoreDistrLen = posAreaFinal*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
+  int scoreDistrMid = posAreaFinal + NNPos::EXTRA_SCORE_DISTR_RADIUS;
   int8_t* rowScoreDistr = scoreDistrN.data + curRows * scoreDistrLen;
-  int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posArea;
+  int8_t* rowOwnership = valueTargetsNCHW.data + curRows * VALUE_SPATIAL_TARGET_NUM_CHANNELS * posAreaFinal;
 
   if(finalOwnership == NULL || (data.endHist.isGameFinished && data.endHist.isNoResult)) {
     rowGlobal[27] = 0.0f;
     rowGlobal[20] = 0.0f;
-    for(int i = 0; i<posArea*2; i++)
+    for(int i = 0; i<posAreaFinal*2; i++)
       rowOwnership[i] = 0;
     for(int i = 0; i<scoreDistrLen; i++)
       rowScoreDistr[i] = 0;
@@ -567,7 +568,7 @@ void TrainingWriteBuffers::addRow(
     rowGlobal[20] = score;
 
     //Fill with zeros in case the buffers differ in size
-    for(int i = 0; i<posArea*2; i++)
+    for(int i = 0; i<posAreaFinal*2; i++)
       rowOwnership[i] = 0;
 
     //Fill ownership info
@@ -580,7 +581,7 @@ void TrainingWriteBuffers::addRow(
         else if(finalOwnership[loc] == opp) rowOwnership[pos] = -1;
         //Mark full area points that ended up not being owned
         if(finalFullArea[loc] != C_EMPTY && finalOwnership[loc] == C_EMPTY)
-          rowOwnership[pos+posArea] = (finalFullArea[loc] == nextPlayer ? 1 : -1);
+          rowOwnership[pos+posAreaFinal] = (finalFullArea[loc] == nextPlayer ? 1 : -1);
       }
     }
 
@@ -604,9 +605,9 @@ void TrainingWriteBuffers::addRow(
 
   if(posHistForFutureBoards == NULL) {
     rowGlobal[33] = 0.0f;
-    for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea*2] = 0;
-      rowOwnership[i+posArea*3] = 0;
+    for(int i = 0; i<posAreaFinal; i++) {
+      rowOwnership[i+posAreaFinal*2] = 0;
+      rowOwnership[i+posAreaFinal*3] = 0;
     }
   }
   else {
@@ -621,9 +622,9 @@ void TrainingWriteBuffers::addRow(
     assert(board2.y_size == board.y_size && board2.x_size == board.x_size);
     assert(board3.y_size == board.y_size && board3.x_size == board.x_size);
 
-    for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea*2] = 0;
-      rowOwnership[i+posArea*3] = 0;
+    for(int i = 0; i<posAreaFinal; i++) {
+      rowOwnership[i+posAreaFinal*2] = 0;
+      rowOwnership[i+posAreaFinal*3] = 0;
     }
     Player pla = nextPlayer;
     Player opp = getOpp(nextPlayer);
@@ -631,10 +632,10 @@ void TrainingWriteBuffers::addRow(
       for(int x = 0; x<board.x_size; x++) {
         int pos = NNPos::xyToPos(x,y,!Space::DUPLICATE ? dataXLen : dataXLen/2);
         Loc loc = Location::getLoc(x,y,board.x_size);
-        if(board2.colors[loc] == pla) rowOwnership[pos+posArea*2] = 1;
-        else if(board2.colors[loc] == opp) rowOwnership[pos+posArea*2] = -1;
-        if(board3.colors[loc] == pla) rowOwnership[pos+posArea*3] = 1;
-        else if(board3.colors[loc] == opp) rowOwnership[pos+posArea*3] = -1;
+        if(board2.colors[loc] == pla) rowOwnership[pos+posAreaFinal*2] = 1;
+        else if(board2.colors[loc] == opp) rowOwnership[pos+posAreaFinal*2] = -1;
+        if(board3.colors[loc] == pla) rowOwnership[pos+posAreaFinal*3] = 1;
+        else if(board3.colors[loc] == opp) rowOwnership[pos+posAreaFinal*3] = -1;
       }
     }
   }
@@ -644,15 +645,15 @@ void TrainingWriteBuffers::addRow(
      || (data.endHist.isGameFinished && data.endHist.isNoResult)
   ) {
     rowGlobal[34] = 0.0f;
-    for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea*4] = 0;
+    for(int i = 0; i<posAreaFinal; i++) {
+      rowOwnership[i+posAreaFinal*4] = 0;
     }
   }
   else {
     rowGlobal[34] = 1.0f;
     //Fill with zeros in case the buffers differ in size
-    for(int i = 0; i<posArea; i++) {
-      rowOwnership[i+posArea*4] = 0;
+    for(int i = 0; i<posAreaFinal; i++) {
+      rowOwnership[i+posAreaFinal*4] = 0;
     }
 
     for(int y = 0; y<board.y_size; y++) {
@@ -661,7 +662,7 @@ void TrainingWriteBuffers::addRow(
         Loc loc = Location::getLoc(x,y,board.x_size);
         float scoring = (nextPlayer == P_WHITE ? finalWhiteScoring[loc] : -finalWhiteScoring[loc]);
         assert(scoring <= 1.0f && scoring >= -1.0f);
-        rowOwnership[pos+posArea*4] = convertRadiusOneToRadius120(scoring,rand);
+        rowOwnership[pos+posAreaFinal*4] = convertRadiusOneToRadius120(scoring,rand);
       }
     }
   }

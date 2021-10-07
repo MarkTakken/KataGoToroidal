@@ -452,6 +452,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
 
 endif()
-
+set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -glldb")
 target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 

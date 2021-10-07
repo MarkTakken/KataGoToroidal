@@ -376,6 +376,8 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   nnXLen = others[0]->nnXLen;
   nnYLen = others[0]->nnYLen;
 
+  int posAreaFinal = !Space::DUPLICATE ? (nnXLen*nnYLen) : (nnXLen*nnYLen/2);
+
   {
     float whiteOwnerMapCount = 0.0f;
     whiteOwnerMap = NULL;
@@ -387,13 +389,13 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
           std::fill(whiteOwnerMap, whiteOwnerMap + nnXLen * nnYLen, 0.0f);
         }
         whiteOwnerMapCount += 1.0f;
-        for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+        for(int pos = 0; pos<posAreaFinal; pos++)
           whiteOwnerMap[pos] += other.whiteOwnerMap[pos];
       }
     }
     if(whiteOwnerMap != NULL) {
       assert(whiteOwnerMapCount > 0);
-      for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+      for(int pos = 0; pos<posAreaFinal; pos++)
         whiteOwnerMap[pos] /= whiteOwnerMapCount;
     }
   }
