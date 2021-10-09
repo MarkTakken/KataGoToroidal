@@ -2,6 +2,6 @@ class Space:
     PLANAR = 0
     TOROIDAL = 1
     KLEIN = 2
-    SETSPACE = TOROIDAL
+    SETSPACE = KLEIN
     NETSPACE = TOROIDAL
-    DUPLICATE = False
+    DUPLICATE = True

@@ -414,7 +414,7 @@ void TrainingWriteBuffers::addRow(
   int16_t* rowPolicy = policyTargetsNCMove.data + curRows * POLICY_TARGET_NUM_CHANNELS * policySize;
 
   if(policyTarget0 != NULL) {
-    fillPolicyTarget(*policyTarget0, policySize, !Space::DUPLICATE ? dataXLen : dataXLen/2, dataYLen, board.x_size, rowPolicy + 0 * policySize);
+    fillPolicyTarget(*policyTarget0, policySize, dataXLen, dataYLen, board.x_size, rowPolicy + 0 * policySize);
     rowGlobal[26] = 1.0f;
   }
   else {
@@ -423,7 +423,7 @@ void TrainingWriteBuffers::addRow(
   }
 
   if(policyTarget1 != NULL) {
-    fillPolicyTarget(*policyTarget1, policySize, !Space::DUPLICATE ? dataXLen : dataXLen/2, dataYLen, board.x_size, rowPolicy + 1 * policySize);
+    fillPolicyTarget(*policyTarget1, policySize, dataXLen, dataYLen, board.x_size, rowPolicy + 1 * policySize);
     rowGlobal[28] = 1.0f;
   }
   else {
