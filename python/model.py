@@ -665,7 +665,7 @@ class Model:
     if pad_size == 0:
       return tensor
     ysize,xsize = tensor.shape[1:3]
-    tensor = tf.concat([tf.reverse(tf.gather(tensor,list(range(ysize-pad_size,ysize)),axis=1),axis=(2,)),tensor,tf.reverse(tf.gather(tensor,list(range(pad_size)),axis=1),axis=(2,))],axis=1)
+    tensor = tf.concat([tf.gather(tensor,list(range(ysize-pad_size,ysize)),axis=1),tensor,tf.gather(tensor,list(range(pad_size)),axis=1)],axis=1)
     tensor = tf.concat([tf.reverse(tf.gather(tensor,list(range(xsize-pad_size,xsize)),axis=2),axis=(1,)),tensor,tf.reverse(tf.gather(tensor,list(range(pad_size)),axis=2),axis=(1,))],axis=2)
     return tensor
 

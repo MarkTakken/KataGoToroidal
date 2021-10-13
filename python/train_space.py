@@ -3,5 +3,5 @@ class Space:
     TOROIDAL = 1
     KLEIN = 2
     SETSPACE = KLEIN
-    NETSPACE = TOROIDAL
-    DUPLICATE = True
+    NETSPACE = KLEIN
+    DUPLICATE = False
