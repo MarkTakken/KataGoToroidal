@@ -1768,6 +1768,7 @@ class ModelUtils:
     binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
     binhwc = tf.math.minimum(binhwc,tf.constant(1.0))
 
+    #binhwc = tf.Print(binhwc,[tf.math.minimum(tf.cast(binchw,tf.float32),tf.constant(1.0))],message = "binchw: ",summarize=-1)
     placeholders["bin_inputs"] = binhwc
 
     placeholders["global_inputs"] = features["ginc"]
@@ -1782,6 +1783,7 @@ class ModelUtils:
 
     policy_target0 = features["ptncm"][:,0,:]
     policy_target0 = policy_target0 / tf.reduce_sum(policy_target0,axis=1,keepdims=True)
+    #policy_target0 = tf.Print(policy_target0,[policy_target0],message="policy_target0: ",summarize=-1)
     placeholders["policy_target"] = policy_target0
     placeholders["policy_target_weight"] = features["gtnc"][:,26]
     policy_target1 = features["ptncm"][:,1,:]
@@ -1796,10 +1798,14 @@ class ModelUtils:
     placeholders["lead_target"] = features["gtnc"][:,21]
     placeholders["variance_time_target"] = features["gtnc"][:,22]
     placeholders["scorebelief_target"] = features["sdn"] / 100.0
+    #placeholders["scorebelief_target"] = tf.Print(placeholders["scorebelief_target"],[placeholders["scorebelief_target"]],message="scorebelief_target: ",summarize=-1)
     placeholders["ownership_target"] = features["vtnchw"][:,0]
+    #placeholders["ownership_target"] = tf.Print(placeholders["ownership_target"],[placeholders["ownership_target"]],message="ownership_target: ",summarize=-1)
     placeholders["scoring_target"] = features["vtnchw"][:,4] / 120.0
     placeholders["futurepos_target"] = tf.transpose(features["vtnchw"][:,2:4], [0,2,3,1])
+    #placeholders["futurepos_target"] = tf.Print(placeholders["futurepos_target"],[placeholders["futurepos_target"]],message = "futurepos_target: ",summarize=-1)
     placeholders["seki_target"] = features["vtnchw"][:,1]
+    #placeholders["seki_target"] = tf.Print(placeholders["seki_target"],[placeholders["seki_target"]],message="seki_target: ",summarize=-1)
 
     placeholders["target_weight_from_data"] = features["gtnc"][:,25]
     placeholders["lead_target_weight"] = features["gtnc"][:,29]

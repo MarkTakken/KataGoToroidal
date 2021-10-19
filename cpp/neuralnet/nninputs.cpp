@@ -517,9 +517,14 @@ void NNOutput::debugPrint(ostream& out, const Board& board) {
   }
 }
 
+static int checkbounds(int a, int b) {
+  if (a >= 0) a %= b;
+  else if (a < 0) a = a % b + b;
+  return a;
+}
 //-------------------------------------------------------------------------------------------------------------
 
-static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, bool reverse, bool final_average) {
+static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, int yShift, int xShift, bool reverse, bool final_average) {
   bool transpose = (symmetry & 0x4) != 0 && (hSize == wSize); //4,5,6,7
   bool swapX = (symmetry & 0x2) != 0; //2,3,6,7
   bool swapY = (symmetry & 0x1) != 0; //1,3,5,7
@@ -555,7 +560,7 @@ static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize,
     }
   }
   else {
-    if (Space::DUPLICATE) assert(hSize == 2*wSize || wSize == 2*hSize);
+    if (Space::DUPLICATE) assert(wSize == 2*hSize);
     int square = min(hSize,wSize);
     int ncSize = nSize * cSize;
     int ncStride = hSize * wSize;
@@ -564,24 +569,30 @@ static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize,
     int wStride = 1;
     int hBaseNew = 0; int hStrideNew = (final_average || transpose) ? square : hStride;
     int wBaseNew = 0; int wStrideNew = wStride;
+    int newWSize = final_average ? square : wSize;
 
-    if(swapY) { hBaseNew = ((final_average ? square : hSize)-1) * hStrideNew; hStrideNew = -hStrideNew; }
-    if(swapX) { wBaseNew = ((final_average ? square : wSize)-1) * wStrideNew; wStrideNew = -wStrideNew; }
+    if (!reverse && Space::SETSPACE == Space::TOROIDAL && Space::NETSPACE == Space::PLANAR) {hBaseNew += yShift*hStrideNew; wBaseNew += xShift*wStrideNew;}
 
-    if(transpose)
+    if(swapY) { hBaseNew = (hSize-1) * hStrideNew - hBaseNew; hStrideNew = -hStrideNew; }
+    if(swapX) { wBaseNew = (newWSize-1) * wStrideNew - wBaseNew; wStrideNew = -wStrideNew; }
+
+    if(transpose) 
       std::swap(hStrideNew,wStrideNew);
+
+    if (reverse && Space::SETSPACE == Space::TOROIDAL && Space::NETSPACE == Space::PLANAR) {hBaseNew -= yShift*abs(hStrideNew); wBaseNew -= xShift*abs(wStrideNew);}
 
     for(int nc = 0; nc<ncSize; nc++) {
       for(int h = 0; h<(final_average ? square : hSize); h++) {
-        int hDup = transpose ? h+square : square-1-h;
+        int hDup = square-1-h;
         int nchOld = nc * ncStride + h*hStride;
-        int nchOldDup = nc * ncStride + hDup*hStride;;
-        int nchNew = nc * ncStrideNew + hBaseNew + h*hStrideNew;
+        int nchOldDup = nc * ncStride + hDup*hStride;
+        int nchNew = nc * ncStrideNew + hBaseNew + h*hStrideNew; //checkbounds(hBaseNew + h*hStrideNew,hSize*abs(hStrideNew));
         for(int w = 0; w<(final_average ? square : wSize); w++) {
-          int wDup = transpose ? square-1-w : w+square;
+          int wDup = w+square;
           int nchwOld = nchOld + w*wStride;
           int nchwOldDup = nchOldDup + wDup*wStride;
-          int nchwNew = nchNew + wBaseNew + w*wStrideNew;
+          int nchwNew = nchNew + wBaseNew + w*wStrideNew; //checkbounds(wBaseNew + w*wStrideNew,wSize*abs(wStrideNew));
+          //nchwNew = nc * ncStrideNew + checkbounds(nchwNew,ncStrideNew);
           if (!final_average) dst[nchwNew] = src[nchwOld];
           else dst[nchwNew] = (src[nchwOld] + src[nchwOldDup])/2;
         }
@@ -591,12 +602,12 @@ static void copyWithSymmetry(const float* src, float* dst, int nSize, int hSize,
 }
 
 
-void SymmetryHelpers::copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry) {
-  copyWithSymmetry(src, dst, nSize, hSize, wSize, cSize, useNHWC, symmetry, false, false);
+void SymmetryHelpers::copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, int yShift, int xShift) {
+  copyWithSymmetry(src, dst, nSize, hSize, wSize, cSize, useNHWC, symmetry, yShift, xShift, false, false);
 }
 
-void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry) {
-  copyWithSymmetry(src, dst, nSize, hSize, wSize, 1, false, symmetry, true, Space::DUPLICATE);
+void SymmetryHelpers::copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry, int yShift, int xShift) {
+  copyWithSymmetry(src, dst, nSize, hSize, wSize, 1, false, symmetry, yShift, xShift, true, Space::DUPLICATE);
 }
 
 //-------------------------------------------------------------------------------------------------------------
@@ -2247,7 +2258,9 @@ void NNInputs::fillRowV7(
     if(board.colors[loc] == opp && board.getNumLiberties(loc) > 1) {
       for(size_t j = 0; j < workingMoves.size(); j++) {
         int workingPos = NNPos::locToPos(workingMoves[j],xSize,nnXLen,nnYLen);
+        int workingPosDup = (nnYLen-1-Location::getY(workingMoves[j],xSize)) * nnXLen + Location::getX(workingMoves[j],xSize)+xSize;
         setRowBin(rowBin,workingPos,17, 1.0f, posStride, featureStride);
+        setRowBin(rowBin,workingPosDup,17,1.0f,posStride,featureStride);
       }
     }
   };

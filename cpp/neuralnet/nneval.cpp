@@ -493,11 +493,22 @@ void NNEvaluator::serve(
 
     for(int row = 0; row<numRows; row++) {
       if(buf.resultBufs[row]->symmetry == NNInputs::SYMMETRY_NOTSPECIFIED) {
-        if(doRandomize)
+        if(doRandomize) {
           buf.resultBufs[row]->symmetry = rand.nextUInt(NNInputs::NUM_SYMMETRY_COMBINATIONS);
+          if (Space::SETSPACE == Space::TOROIDAL && Space::NETSPACE == Space::PLANAR) {
+            buf.resultBufs[row]->xShift = rand.nextUInt(nnXLen);
+            buf.resultBufs[row]->yShift = rand.nextUInt(nnYLen);
+          }
+          else {
+            buf.resultBufs[row]->xShift = 0;
+            buf.resultBufs[row]->yShift = 0;
+          }
+        }
         else {
           assert(defaultSymmetry >= 0 && defaultSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1);
           buf.resultBufs[row]->symmetry = defaultSymmetry;
+          buf.resultBufs[row]->xShift = 0;
+          buf.resultBufs[row]->yShift = 0;
         }
       }
     }
@@ -590,7 +601,7 @@ void NNEvaluator::evaluate(
                       " nnYLen = " + Global::intToString(nnYLen) +
                       " but was asked to evaluate board with larger x or y size");
   if(requireExactNNLen) {
-    if(board.x_size != nnXLen || board.y_size != nnYLen)
+    if(!Space::DUPLICATE && (board.x_size != nnXLen || board.y_size != nnYLen) || Space::DUPLICATE && (board.x_size != nnXLen/2 || board.y_size != nnYLen))
       throw StringError("NNEvaluator was configured with nnXLen = " + Global::intToString(nnXLen) +
                         " nnYLen = " + Global::intToString(nnYLen) +
                         " and requireExactNNLen, but was asked to evaluate board with different x or y size");
