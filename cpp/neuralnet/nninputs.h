@@ -150,8 +150,9 @@ struct NNOutput {
 };
 
 namespace SymmetryHelpers {
-  void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry, int yShift, int xShift);
-  void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry, int yShift, int xShift);
+  void copyInputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, bool useNHWC, int symmetry);
+  void copyOutputsWithSymmetry(const float* src, float* dst, int nSize, int hSize, int wSize, int symmetry);
+  void copyWithRoll(const float* src, float* dst, int nSize, int hSize, int wSize, int cSize, int yShift, int xShift);
 }
 
 //Utility functions for computing the "scoreValue", the unscaled utility of various numbers of points, prior to multiplication by

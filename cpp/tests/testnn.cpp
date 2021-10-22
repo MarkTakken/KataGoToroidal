@@ -939,7 +939,7 @@ void Tests::runNNSymmetryTests() {
         vector<float> inputThisLoop = useNHWC ? NCHWtoNHWC(input,batchSize,numChannels,nnYLen,nnXLen) : input;
         vector<float> outputThisLoop(inputThisLoop.size());
         SymmetryHelpers::copyInputsWithSymmetry(
-          inputThisLoop.data(),outputThisLoop.data(),batchSize,nnXLen,nnYLen,numChannels,useNHWC,symmetry,0,0
+          inputThisLoop.data(),outputThisLoop.data(),batchSize,nnXLen,nnYLen,numChannels,useNHWC,symmetry
         );
         cout << label << " useNHWC " << useNHWC << " " << symmetry << endl;
         for(int i = 0; i<outputThisLoop.size(); i++)
@@ -951,7 +951,7 @@ void Tests::runNNSymmetryTests() {
       vector<float> inputThisLoop = input;
       vector<float> outputThisLoop(inputThisLoop.size());
       SymmetryHelpers::copyOutputsWithSymmetry(
-        inputThisLoop.data(),outputThisLoop.data(),batchSize*numChannels,nnXLen,nnYLen,symmetry,0,0
+        inputThisLoop.data(),outputThisLoop.data(),batchSize*numChannels,nnXLen,nnYLen,symmetry
       );
       cout << label << " OUTPUT " << endl;
       for(int i = 0; i<outputThisLoop.size(); i++)

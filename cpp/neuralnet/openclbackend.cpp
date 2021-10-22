@@ -2526,7 +2526,14 @@ void NeuralNet::getOutput(
     const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
     const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
-    SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry, inputBufs[nIdx]->yShift, inputBufs[nIdx]->xShift);
+    if (!(Space::SETSPACE == Space::TOROIDAL && Space::NETSPACE == Space::PLANAR)) {
+      SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
+    }
+    else {
+      float temp[1*nnYLen*nnXLen*numSpatialFeatures];
+      SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, temp, 1, nnYLen, nnXLen, numSpatialFeatures, gpuHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
+      SymmetryHelpers::copyWithRoll(temp, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, inputBufs[nIdx]->yShift, inputBufs[nIdx]->xShift);
+    }
   }
   /*
   if ((inputBufs[0]->symmetry & 0x4) != 0 && Space::DUPLICATE) {
@@ -2726,7 +2733,14 @@ void NeuralNet::getOutput(
     //These are not actually correct, the client does the postprocessing to turn them into
     //policy probabilities and white game outcome probabilities
     //Also we don't fill in the nnHash here either
-    SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry, inputBufs[row]->yShift, inputBufs[row]->xShift);
+    if (!(Space::SETSPACE == Space::TOROIDAL && Space::NETSPACE == Space::PLANAR)) {
+      SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+    }
+    else {
+      float temp[1*nnYLen*nnXLen*1];
+      SymmetryHelpers::copyWithRoll(policySrcBuf,temp,1,nnYLen,nnXLen,1,-inputBufs[row]->yShift,-inputBufs[row]->xShift);
+      SymmetryHelpers::copyOutputsWithSymmetry(temp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+    }
     if (!Space::DUPLICATE) policyProbs[inputBuffers->singlePolicyResultElts] = inputBuffers->policyPassResults[row];
     else policyProbs[inputBuffers->singlePolicyResultElts/2] = inputBuffers->policyPassResults[row];
 
@@ -2741,7 +2755,14 @@ void NeuralNet::getOutput(
     if(output->whiteOwnerMap != NULL) {
       const float* ownershipSrcBuf = inputBuffers->ownershipResults + row * nnXLen * nnYLen;
       assert(gpuHandle->model->numOwnershipChannels == 1);
-      SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry, inputBufs[row]->yShift, inputBufs[row]->xShift);
+      if (!(Space::SETSPACE == Space::TOROIDAL && Space::NETSPACE == Space::PLANAR)) {
+        SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      }
+      else {
+        float temp[1*nnYLen*nnXLen*1];
+        SymmetryHelpers::copyWithRoll(ownershipSrcBuf,temp,1,nnYLen,nnXLen,1,-inputBufs[row]->yShift,-inputBufs[row]->xShift);
+        SymmetryHelpers::copyOutputsWithSymmetry(temp, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+      }
     }
 
     if(version >= 9) {
